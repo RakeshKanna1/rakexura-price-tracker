@@ -174,7 +174,7 @@ async def get_game_prices(game_id: str, region: str = "IN"):
         
         # Calculate pricing statistics (Lowest, Highest, Average)
         history_col = get_collection("price_history")
-        cursor = await history_col.find({"cheapshark_id": game_id})
+        cursor = history_col.find({"cheapshark_id": game_id})
         history_points = await cursor.to_list(length=1000)
         
         r_info = REGIONS.get(region, REGIONS["IN"])
@@ -254,7 +254,7 @@ async def get_game_history(game_id: str, days: int = 30, region: str = "IN"):
     r_info = REGIONS.get(region, REGIONS["IN"])
     rate = r_info["rate"]
     
-    cursor = await history_col.find(
+    cursor = history_col.find(
         {"cheapshark_id": game_id, "timestamp": {"$gt": cutoff_date}},
         sort=[("timestamp", 1)]
     )
@@ -357,7 +357,7 @@ async def add_to_wishlist(game: WishlistCreate):
 async def get_wishlist(region: str = "IN"):
     """Retrieve all wishlisted games with dynamically converted currencies & margin profits"""
     games_col = get_collection("games")
-    cursor = await games_col.find()
+    cursor = games_col.find()
     games = await cursor.to_list(length=200)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -480,7 +480,7 @@ async def add_inventory(item: InventoryCreate, region: str = "IN"):
 async def get_inventory(region: str = "IN"):
     """Retrieve purchase history logs"""
     inv_col = get_collection("inventory")
-    cursor = await inv_col.find(sort=[("purchase_date", -1)])
+    cursor = inv_col.find(sort=[("purchase_date", -1)])
     items = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -511,7 +511,7 @@ async def delete_inventory(item_id: str):
         res = await inv_col.delete_one({"_id": item_id})
         
     if res.deleted_count == 0:
-        cursor = await inv_col.find()
+        cursor = inv_col.find()
         all_items = await cursor.to_list(length=1000)
         for item in all_items:
             if str(item.get("_id")) == item_id:
@@ -559,7 +559,7 @@ async def add_sale(sale: SaleCreate, region: str = "IN"):
 async def get_sales(region: str = "IN"):
     """List customer sales ledger"""
     sales_col = get_collection("sales")
-    cursor = await sales_col.find(sort=[("timestamp", -1)])
+    cursor = sales_col.find(sort=[("timestamp", -1)])
     sales = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -587,7 +587,7 @@ async def get_sales(region: str = "IN"):
 async def get_sales_stats(region: str = "IN"):
     """Calculate core revenue/profit analytics values"""
     sales_col = get_collection("sales")
-    cursor = await sales_col.find()
+    cursor = sales_col.find()
     sales = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -635,7 +635,7 @@ async def delete_sale(sale_id: str):
         res = await sales_col.delete_one({"_id": sale_id})
         
     if res.deleted_count == 0:
-        cursor = await sales_col.find()
+        cursor = sales_col.find()
         all_sales = await cursor.to_list(length=1000)
         for s in all_sales:
             if str(s.get("_id")) == sale_id:
@@ -655,7 +655,7 @@ async def get_analytics(region: str = "IN"):
     r_info = REGIONS.get(region, REGIONS["IN"])
     rate = r_info["rate"]
     
-    cursor = await sales_col.find()
+    cursor = sales_col.find()
     sales = await cursor.to_list(length=1000)
     
     selling_stats = {}
@@ -677,7 +677,7 @@ async def get_analytics(region: str = "IN"):
     highest_profit = [{"name": k, "value": round(v, 2)} for k, v in profit_stats.items()]
     best_roi = [{"name": k, "value": round(v, 2)} for k, v in roi_stats.items()]
     
-    cursor = await trending_col.find(sort=[("search_count", -1)], limit=5)
+    cursor = trending_col.find(sort=[("search_count", -1)], limit=5)
     trending_games = await cursor.to_list(length=5)
     most_viewed = [{"name": g["name"], "value": g.get("search_count", 0)} for g in trending_games]
     
@@ -784,7 +784,7 @@ async def get_calendar():
 async def get_suggestions(region: str = "IN"):
     """Recommend purchases based on discount depth and margins"""
     games_col = get_collection("games")
-    cursor = await games_col.find()
+    cursor = games_col.find()
     games = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -920,7 +920,7 @@ async def get_notifications(region: str = "IN"):
     symbol = r_info["symbol"]
     
     # 1. Historical lowest prices alerts
-    cursor = await games_col.find()
+    cursor = games_col.find()
     games = await cursor.to_list(length=1000)
     for g in games:
         buy = g.get("current_price", 0.0)
@@ -934,7 +934,7 @@ async def get_notifications(region: str = "IN"):
             })
             
     # 2. Triggered price alert thresholds
-    cursor = await alerts_col.find({"is_active": False})
+    cursor = alerts_col.find({"is_active": False})
     triggered_alerts = await cursor.to_list(length=100)
     for ta in triggered_alerts:
         notifications.append({
@@ -990,7 +990,7 @@ async def create_alert(alert: AlertCreate):
 @app.get("/api/alerts")
 async def get_alerts():
     alerts_col = get_collection("alerts")
-    cursor = await alerts_col.find()
+    cursor = alerts_col.find()
     alerts = await cursor.to_list(length=500)
     for a in alerts:
         a["id"] = str(a["_id"])
@@ -1003,7 +1003,7 @@ async def delete_alert(alert_id: str):
     alerts_col = get_collection("alerts")
     res = await alerts_col.delete_one({"_id": alert_id})
     if res.deleted_count == 0:
-        cursor = await alerts_col.find()
+        cursor = alerts_col.find()
         all_alerts = await cursor.to_list(length=500)
         for a in all_alerts:
             if str(a.get("_id")) == alert_id:
@@ -1072,7 +1072,7 @@ async def refresh_single_game(cheapshark_id: str):
 @app.get("/api/logs")
 async def get_logs(limit: int = 50):
     logs_col = get_collection("logs")
-    cursor = await logs_col.find(sort=[("timestamp", -1)], limit=limit)
+    cursor = logs_col.find(sort=[("timestamp", -1)], limit=limit)
     logs = await cursor.to_list(length=limit)
     for l in logs:
         l["id"] = str(l["_id"])
@@ -1088,7 +1088,7 @@ async def get_dashboard_stats(region: str = "IN"):
     total_games = await games_col.count_documents({})
     active_alerts = await alerts_col.count_documents({"is_active": True})
     
-    cursor = await games_col.find()
+    cursor = games_col.find()
     games = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -1160,7 +1160,7 @@ async def get_steam_sale_countdown():
 @app.get("/api/trending")
 async def get_trending_games():
     trending_col = get_collection("trending")
-    cursor = await trending_col.find(sort=[("search_count", -1)], limit=5)
+    cursor = trending_col.find(sort=[("search_count", -1)], limit=5)
     games = await cursor.to_list(length=5)
     for g in games:
         g["id"] = str(g["_id"])
@@ -1180,7 +1180,7 @@ async def save_search(query: str = Query(...)):
 @app.get("/api/search-history")
 async def get_search_history():
     history_col = get_collection("search_history")
-    cursor = await history_col.find(sort=[("timestamp", -1)], limit=10)
+    cursor = history_col.find(sort=[("timestamp", -1)], limit=10)
     history = await cursor.to_list(length=10)
     return [item["query"] for item in history]
 
@@ -1196,7 +1196,7 @@ async def export_price_history_csv(game_id: str, region: str = "IN"):
     rate = r_info["rate"]
     code = r_info["code"]
     
-    cursor = await history_col.find({"cheapshark_id": game_id}, sort=[("timestamp", 1)])
+    cursor = history_col.find({"cheapshark_id": game_id}, sort=[("timestamp", 1)])
     history = await cursor.to_list(length=1000)
     
     if not history:
@@ -1220,7 +1220,7 @@ async def export_price_history_csv(game_id: str, region: str = "IN"):
 @app.get("/api/export/wishlist")
 async def export_wishlist_csv(region: str = "IN"):
     games_col = get_collection("games")
-    cursor = await games_col.find()
+    cursor = games_col.find()
     games = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])

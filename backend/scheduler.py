@@ -55,7 +55,7 @@ async def update_single_game_prices(game: dict):
         
         # 3. Check for triggered alerts
         alerts_col = get_collection("alerts")
-        cursor = await alerts_col.find({"cheapshark_id": cheapshark_id, "is_active": True})
+        cursor = alerts_col.find({"cheapshark_id": cheapshark_id, "is_active": True})
         alerts = await cursor.to_list(length=100)
         
         logs_col = get_collection("logs")
@@ -100,7 +100,7 @@ async def update_all_prices():
     """
     logger.info("Starting background price update job...")
     games_col = get_collection("games")
-    cursor = await games_col.find()
+    cursor = games_col.find()
     games = await cursor.to_list(length=1000)
     
     if not games:

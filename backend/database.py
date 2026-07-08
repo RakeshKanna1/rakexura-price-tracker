@@ -54,11 +54,11 @@ class MockCollection:
             logger.error(f"Failed to write to mock database file {self.filepath}: {e}")
 
     async def find_one(self, filter, sort=None):
-        cursor = await self.find(filter, sort=sort, limit=1)
+        cursor = self.find(filter, sort=sort, limit=1)
         res = await cursor.to_list()
         return res[0] if res else None
 
-    async def find(self, filter=None, sort=None, limit=None):
+    def find(self, filter=None, sort=None, limit=None):
         data = self._read()
         results = []
         
