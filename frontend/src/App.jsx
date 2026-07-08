@@ -211,7 +211,7 @@ function App() {
 
               {/* Dropdown Box */}
               {showNotifDropdown && (
-                <div className="absolute right-0 mt-3.5 w-80 glass-panel rounded-2xl border border-white/10 shadow-2xl p-4.5 z-30 space-y-3.5 bg-gaming-card max-h-96 overflow-y-auto">
+                <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 mt-3.5 w-auto sm:w-80 glass-panel rounded-2xl border border-white/10 shadow-2xl p-4.5 z-30 space-y-3.5 bg-gaming-card max-h-96 overflow-y-auto">
                   <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
                     <h4 className="text-xs uppercase font-black tracking-wider text-white">System Alerts</h4>
                     <button 

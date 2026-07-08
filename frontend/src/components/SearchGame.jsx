@@ -432,7 +432,7 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="px-6 py-4 bg-white/[0.01] border-t border-white/5 flex flex-wrap gap-4 items-center justify-between">
+                  <div className="px-6 py-4 bg-white/[0.01] border-t border-white/5 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
                     <div className="flex items-center gap-2">
                       <TrendingDown className="w-4 h-4 text-gaming-green" />
                       <span className="text-xs text-gaming-muted font-bold">
@@ -443,7 +443,7 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
                     <button
                       onClick={handleAddToWishlist}
                       disabled={wishlistStatus || addingWishlist}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+                      className={`w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
                         wishlistStatus
                           ? 'bg-gaming-green/10 border border-gaming-green/20 text-gaming-green cursor-default'
                           : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white active:scale-95'
@@ -483,16 +483,16 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
 
                 {/* Price Difference Spread Alert Banner */}
                 {calculatePriceSpread() > 0 && (
-                  <div className="bg-gaming-accent/10 border border-gaming-accent/25 px-5 py-4 rounded-2xl flex items-center justify-between">
+                  <div className="bg-gaming-accent/10 border border-gaming-accent/25 px-5 py-4 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 text-left">
                     <div>
                       <span className="text-xs uppercase font-extrabold text-gaming-accent tracking-wider">Reseller Arbitrage Spread</span>
                       <p className="text-sm font-bold text-white mt-0.5">
                         Lowest deal is cheaper than highest store listing.
                       </p>
                     </div>
-                    <div className="text-right">
-                      <span className="text-xs text-gaming-muted">Difference Savings</span>
-                      <h4 className="text-lg font-black text-gaming-green">
+                    <div className="text-left sm:text-right flex-shrink-0">
+                      <span className="text-xs text-gaming-muted block">Difference Savings</span>
+                      <h4 className="text-lg font-black text-gaming-green mt-0.5">
                         +{gameDetails.currency_symbol}{calculatePriceSpread()} Saved!
                       </h4>
                     </div>
