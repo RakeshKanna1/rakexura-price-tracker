@@ -186,19 +186,26 @@ async def get_game_prices(game_id: str, region: str = "IN"):
             details["cheapest_ever"] = details["lowest_price"]
 
         prices_usd = [p["price"] for p in history_points]
-        if not prices_usd:
-            current_usd = details["lowest_price"] / rate if rate > 0 else details["lowest_price"]
-            cheapest_ever_usd = details["cheapest_ever"] / rate if rate > 0 else details["cheapest_ever"]
-            lowest_usd = min(cheapest_ever_usd, current_usd)
-            
-            cheapest_deal = details["platform_prices"][0] if details["platform_prices"] else None
-            orig_usd = cheapest_deal["original_price"] / rate if (cheapest_deal and rate > 0) else current_usd * 1.4
-            
-            prices_usd = [lowest_usd, current_usd, (lowest_usd + orig_usd) / 2, orig_usd]
-            
-        hist_lowest = min(prices_usd) * rate
-        hist_highest = max(prices_usd) * rate
-        hist_average = (sum(prices_usd) / len(prices_usd)) * rate
+        current_usd = details["lowest_price"] / rate if rate > 0 else details["lowest_price"]
+        cheapest_ever_usd = details["cheapest_ever"] / rate if rate > 0 else details["cheapest_ever"]
+        
+        cheapest_deal = details["platform_prices"][0] if details["platform_prices"] else None
+        orig_usd = cheapest_deal["original_price"] / rate if (cheapest_deal and rate > 0) else current_usd * 1.4
+        
+        # Always incorporate CheapShark's absolute Lowest Ever and the Retail Original Price as boundaries
+        all_lows = prices_usd + [cheapest_ever_usd, current_usd]
+        all_highs = prices_usd + [orig_usd]
+        
+        hist_lowest = min(all_lows) * rate
+        hist_highest = max(all_highs) * rate
+        
+        # Calculate a realistic average
+        if len(prices_usd) >= 3:
+            hist_average = (sum(prices_usd) / len(prices_usd)) * rate
+        else:
+            # Average the database points along with the original price and cheapest ever
+            all_points = prices_usd + [cheapest_ever_usd, orig_usd]
+            hist_average = (sum(all_points) / len(all_points)) * rate
         
         details["hist_lowest"] = round(hist_lowest, 2)
         details["hist_highest"] = round(hist_highest, 2)
