@@ -1,15 +1,19 @@
-const CACHE_NAME = 'rakexura-price-tracker-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/rakexura_logo.png'
-];
+const CACHE_NAME = 'rakexura-price-tracker-v2';
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
+          }
+        })
+      );
     })
   );
 });
@@ -19,9 +23,23 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api')) {
     return;
   }
+
+  // Network-first strategy for pages and assets to ensure updates are served immediately
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+    fetch(event.request)
+      .then((response) => {
+        // Cache successful GET requests for offline fallback
+        if (response.status === 200 && event.request.method === 'GET') {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // Fallback to cache if network is down/offline
+        return caches.match(event.request);
+      })
   );
 });

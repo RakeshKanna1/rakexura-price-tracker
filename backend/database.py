@@ -243,7 +243,12 @@ async def init_db():
         return
         
     try:
-        client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=2000)
+        import certifi
+        if MONGODB_URI.startswith("mongodb+srv") or "ssl=true" in MONGODB_URI.lower():
+            client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=5000, tlsCAFile=certifi.where())
+        else:
+            client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+            
         # Verify connection
         await client.admin.command('ping')
         db = client[DB_NAME]

@@ -1085,7 +1085,7 @@ async def get_dashboard_stats(region: str = "IN"):
     alerts_col = get_collection("alerts")
     logs_col = get_collection("logs")
     
-    total_games = await games_col.count_documents()
+    total_games = await games_col.count_documents({})
     active_alerts = await alerts_col.count_documents({"is_active": True})
     
     cursor = await games_col.find()
