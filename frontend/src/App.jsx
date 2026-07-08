@@ -270,10 +270,11 @@ function App() {
               </select>
             </div>
           </div>
-
-          {renderContent()}
         </div>
-      </main>
+
+        {renderContent()}
+      </div>
+    </main>
 
       {/* Floating Notifications */}
       {toast.visible && (
