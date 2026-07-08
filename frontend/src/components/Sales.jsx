@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Plus, Trash2, Calendar, Loader2, Phone, User, ShoppingBag, Landmark, Truck } from 'lucide-react';
 import axios from 'axios';
-import { API_BASE } from '../config';
+import { API_BASE, cacheGet, cacheSet } from '../config';
 
 const Sales = ({ triggerToast, region }) => {
   const [sales, setSales] = useState([]);
@@ -26,13 +26,19 @@ const Sales = ({ triggerToast, region }) => {
   const [paymentStatus, setPaymentStatus] = useState('Paid');
   const [deliveryStatus, setDeliveryStatus] = useState('Delivered');
 
-  const fetchData = async () => {
+  const fetchData = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const salesRes = await axios.get(`${API_BASE}/sales`, { params: { region } });
-      setSales(salesRes.data);
-
       const statsRes = await axios.get(`${API_BASE}/sales/stats`, { params: { region } });
+      
+      setSales(salesRes.data);
       setStats(statsRes.data);
+      
+      cacheSet(`sales_${region}`, {
+        sales: salesRes.data,
+        stats: statsRes.data
+      });
     } catch (e) {
       console.error(e);
       triggerToast("Failed to load sales database.", "error");
@@ -42,7 +48,15 @@ const Sales = ({ triggerToast, region }) => {
   };
 
   useEffect(() => {
-    fetchData();
+    const cached = cacheGet(`sales_${region}`);
+    if (cached) {
+      setSales(cached.sales);
+      setStats(cached.stats);
+      setLoading(false);
+      fetchData(true); // background refresh
+    } else {
+      fetchData(false);
+    }
   }, [region]);
 
   const handleAddSale = async (e) => {

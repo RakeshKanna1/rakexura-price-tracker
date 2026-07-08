@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Database, Plus, Trash2, Calendar, Loader2, DollarSign, Tag, Info } from 'lucide-react';
 import axios from 'axios';
-import { API_BASE } from '../config';
+import { API_BASE, cacheGet, cacheSet } from '../config';
 
 const Inventory = ({ triggerToast, region }) => {
   const [inventory, setInventory] = useState([]);
@@ -17,10 +17,12 @@ const Inventory = ({ triggerToast, region }) => {
   const [quantity, setQuantity] = useState('1');
   const [activationType, setActivationType] = useState('Steam Key');
 
-  const fetchInventory = async () => {
+  const fetchInventory = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/inventory`, { params: { region } });
       setInventory(res.data);
+      cacheSet(`inventory_${region}`, res.data);
     } catch (e) {
       console.error(e);
       triggerToast("Failed to load inventory logs.", "error");
@@ -30,7 +32,14 @@ const Inventory = ({ triggerToast, region }) => {
   };
 
   useEffect(() => {
-    fetchInventory();
+    const cached = cacheGet(`inventory_${region}`);
+    if (cached) {
+      setInventory(cached);
+      setLoading(false);
+      fetchInventory(true); // background refresh
+    } else {
+      fetchInventory(false);
+    }
   }, [region]);
 
   const handleAddStock = async (e) => {

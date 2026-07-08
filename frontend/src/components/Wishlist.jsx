@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, Trash2, Calendar, Eye, Loader2, Gamepad2, ArrowRight, Download, RefreshCw, DollarSign } from 'lucide-react';
 import axios from 'axios';
-import { API_BASE } from '../config';
+import { API_BASE, cacheGet, cacheSet } from '../config';
 
 const Wishlist = ({ onViewDetails, triggerToast, region }) => {
   const [wishlist, setWishlist] = useState([]);
@@ -9,10 +9,13 @@ const Wishlist = ({ onViewDetails, triggerToast, region }) => {
   const [deletingId, setDeletingId] = useState(null);
   const [refreshingId, setRefreshingId] = useState(null);
 
-  const fetchWishlist = async () => {
+  const fetchWishlist = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/wishlist`, { params: { region } });
       setWishlist(res.data);
+      // Cache data
+      cacheSet(`wishlist_${region}`, res.data);
     } catch (err) {
       console.error(err);
       triggerToast("Failed to load wishlist.", "error");
@@ -22,7 +25,14 @@ const Wishlist = ({ onViewDetails, triggerToast, region }) => {
   };
 
   useEffect(() => {
-    fetchWishlist();
+    const cached = cacheGet(`wishlist_${region}`);
+    if (cached) {
+      setWishlist(cached);
+      setLoading(false);
+      fetchWishlist(true); // silent refresh
+    } else {
+      fetchWishlist(false);
+    }
   }, [region]);
 
   const handleRemove = async (cheapsharkId, name) => {

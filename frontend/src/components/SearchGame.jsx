@@ -5,12 +5,12 @@ import axios from 'axios';
 import { API_BASE } from '../config';
 
 const REGION_RATES = {
-  IN: { symbol: '₹', rate: 83.0 },
-  US: { symbol: '$', rate: 1.0 },
-  TR: { symbol: '₺', rate: 32.5 },
-  AR: { symbol: '$', rate: 910.0 },
-  BR: { symbol: 'R$', rate: 5.5 },
-  EU: { symbol: '€', rate: 0.92 }
+  IN: { symbol: '₹', rate: 83.0, code: 'INR' },
+  US: { symbol: '$', rate: 1.0, code: 'USD' },
+  TR: { symbol: '₺', rate: 32.5, code: 'TRY' },
+  AR: { symbol: '$', rate: 910.0, code: 'ARS' },
+  BR: { symbol: 'R$', rate: 5.5, code: 'BRL' },
+  EU: { symbol: '€', rate: 0.92, code: 'EUR' }
 };
 
 const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region }) => {
@@ -460,7 +460,7 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
                 </div>
 
                 {/* Historical Price Statistics Cards */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="glass-panel p-4 rounded-2xl border border-white/5 text-center">
                     <span className="text-[10px] uppercase font-black text-gaming-muted tracking-wider">Historical Low</span>
                     <h4 className="text-lg font-black text-gaming-green mt-1">
@@ -667,17 +667,17 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
                   <form onSubmit={handleCreateAlert} className="mt-6 space-y-4">
                     <div>
                       <label className="text-[10px] uppercase font-bold text-gaming-muted tracking-wider block mb-2">
-                        Target Price (₹ INR)
+                        Target Price ({activeRegion.symbol} {activeRegion.code})
                       </label>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 font-extrabold text-sm text-gaming-muted">
-                          ₹
+                          {activeRegion.symbol}
                         </span>
                         <input
                           type="number"
                           value={alertTargetPrice}
                           onChange={(e) => setAlertTargetPrice(e.target.value)}
-                          placeholder="e.g. 600"
+                          placeholder={`e.g. ${Math.round(10 * activeRegion.rate)}`}
                           className="w-full bg-gaming-bg border border-white/5 rounded-xl pl-8.5 pr-4 py-3 text-sm font-extrabold text-white placeholder-gaming-muted/40 focus:outline-none focus:border-gaming-accent/40"
                           required
                           min="1"

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, TrendingDown, Bell, Clock, RefreshCw, ArrowRight, Flame } from 'lucide-react';
 import axios from 'axios';
-import { API_BASE } from '../config';
+import { API_BASE, cacheGet, cacheSet } from '../config';
 
 const Dashboard = ({ setActiveTab, triggerToast, region }) => {
   const [stats, setStats] = useState({
@@ -25,17 +25,23 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const statsRes = await axios.get(`${API_BASE}/stats`, { params: { region } });
-      setStats(statsRes.data);
-      
       const countdownRes = await axios.get(`${API_BASE}/countdown`);
-      const secs = countdownRes.data.seconds_remaining;
-      calculateCountdown(secs, countdownRes.data.sale_name);
-      
       const trendingRes = await axios.get(`${API_BASE}/trending`);
+      
+      setStats(statsRes.data);
       setTrending(trendingRes.data);
+      calculateCountdown(countdownRes.data.seconds_remaining, countdownRes.data.sale_name);
+      
+      // Cache the result
+      cacheSet(`dashboard_${region}`, {
+        stats: statsRes.data,
+        countdown: countdownRes.data,
+        trending: trendingRes.data
+      });
       
       setLoading(false);
     } catch (error) {
@@ -72,7 +78,16 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    const cached = cacheGet(`dashboard_${region}`);
+    if (cached) {
+      setStats(cached.stats);
+      setTrending(cached.trending);
+      calculateCountdown(cached.countdown.seconds_remaining, cached.countdown.sale_name);
+      setLoading(false);
+      fetchDashboardData(true); // background refresh
+    } else {
+      fetchDashboardData(false);
+    }
   }, [region]);
 
   // Periodic countdown updates

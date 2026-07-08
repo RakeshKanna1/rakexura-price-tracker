@@ -254,8 +254,8 @@ function App() {
             </div>
 
             {/* Region Selector */}
-            <div className="flex items-center gap-2.5 glass-panel px-4 py-2 rounded-xl border border-white/5 shadow-glow">
-              <span className="text-xs uppercase font-extrabold text-gaming-muted tracking-wider">Dashboard Region:</span>
+            <div className="flex items-center gap-2.5 glass-panel px-3 sm:px-4 py-2 rounded-xl border border-white/5 shadow-glow">
+              <span className="text-xs uppercase font-extrabold text-gaming-muted tracking-wider hidden sm:inline">Dashboard Region:</span>
               <select
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
