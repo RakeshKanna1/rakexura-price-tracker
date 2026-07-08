@@ -11,7 +11,7 @@ import Analytics from './components/Analytics';
 import SalesCalendar from './components/SalesCalendar';
 import Suggestions from './components/Suggestions';
 import Toast from './components/Toast';
-import { Bell, BellOff, X, Flame, TrendingDown, Clock, ShieldAlert } from 'lucide-react';
+import { Bell, BellOff, X, Flame, TrendingDown, Clock, ShieldAlert, Menu } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE } from './config';
 import './App.css';
@@ -20,6 +20,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [region, setRegion] = useState('IN');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Smart Notifications State
   const [notifications, setNotifications] = useState([]);
@@ -156,19 +157,42 @@ function App() {
   return (
     <div className="min-h-screen bg-gaming-bg text-gaming-text flex">
       {/* Sidebar Component */}
-      <Sidebar activeTab={activeTab} setActiveTab={(tab) => {
-        if (tab !== 'search') {
-          setSelectedGameId(null);
-        }
-        setActiveTab(tab);
-      }} />
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={(tab) => {
+          if (tab !== 'search') {
+            setSelectedGameId(null);
+          }
+          setActiveTab(tab);
+        }} 
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
+
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       {/* Main Layout Area */}
-      <main className="flex-1 min-h-screen ml-64 p-8 xl:p-10 max-w-7xl overflow-x-hidden">
+      <main className="flex-1 min-h-screen ml-0 md:ml-64 p-4 md:p-8 xl:p-10 max-w-7xl overflow-x-hidden">
         <div className="max-w-6xl mx-auto">
           
           {/* Top Bar with Notification Dropdown & Region Switcher */}
-          <div className="flex justify-end gap-3.5 mb-6 relative">
+          <div className="flex justify-between items-center gap-3.5 mb-6 relative">
+            
+            {/* Mobile Hamburger Button */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="flex md:hidden items-center justify-center w-10 h-10 rounded-xl bg-gaming-card border border-white/5 shadow-glow hover:border-white/10 active:scale-95 transition-all text-white"
+            >
+              <Menu className="w-4.5 h-4.5" />
+            </button>
+
+            <div className="flex items-center gap-3.5 ml-auto">
             
             {/* Notification Bell */}
             <div className="relative">

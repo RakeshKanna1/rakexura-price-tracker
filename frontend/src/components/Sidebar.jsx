@@ -9,10 +9,11 @@ import {
   DollarSign, 
   BarChart3, 
   Calendar, 
-  Lightbulb 
+  Lightbulb,
+  X
 } from 'lucide-react';
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = ({ activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen }) => {
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
     { id: 'search', name: 'Search Games', icon: Search },
@@ -27,21 +28,36 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <aside className="w-64 h-screen fixed left-0 top-0 glass-panel border-r border-white/5 flex flex-col justify-between py-6 z-20 overflow-y-auto hide-scrollbar">
+    <aside className={`w-64 h-screen fixed left-0 top-0 glass-panel border-r border-white/5 flex flex-col justify-between py-6 z-40 overflow-y-auto hide-scrollbar transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div>
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-6 mb-8 cursor-pointer group" onClick={() => setActiveTab('dashboard')}>
-          <img 
-            src="/rakexura_logo.png" 
-            alt="Rakexura Logo" 
-            className="w-10 h-10 object-cover rounded-xl shadow-glow border border-gaming-accent/20 group-hover:scale-105 transition-all duration-300"
-          />
-          <div>
-            <h1 className="text-lg font-extrabold tracking-wider bg-gradient-to-r from-white via-slate-100 to-gaming-accent bg-clip-text text-transparent">
-              RAKEXURA
-            </h1>
-            <p className="text-[10px] uppercase tracking-widest text-gaming-muted font-semibold">Tracker</p>
+        <div className="flex items-center justify-between px-6 mb-8">
+          <div 
+            className="flex items-center gap-3 cursor-pointer group" 
+            onClick={() => {
+              setActiveTab('dashboard');
+              if (setIsSidebarOpen) setIsSidebarOpen(false);
+            }}
+          >
+            <img 
+              src="/rakexura_logo.png" 
+              alt="Rakexura Logo" 
+              className="w-10 h-10 object-cover rounded-xl shadow-glow border border-gaming-accent/20 group-hover:scale-105 transition-all duration-300"
+            />
+            <div>
+              <h1 className="text-lg font-extrabold tracking-wider bg-gradient-to-r from-white via-slate-100 to-gaming-accent bg-clip-text text-transparent">
+                RAKEXURA
+              </h1>
+              <p className="text-[10px] uppercase tracking-widest text-gaming-muted font-semibold">Tracker</p>
+            </div>
           </div>
+          {/* Close button on mobile */}
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden text-gaming-muted hover:text-white p-1"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Menu Items */}
@@ -52,7 +68,10 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  if (setIsSidebarOpen) setIsSidebarOpen(false);
+                }}
                 className={`w-full flex items-center gap-3.5 px-4.5 py-3 rounded-xl text-xs font-bold transition-all duration-300 ${
                   isActive 
                     ? 'bg-gaming-accent text-white shadow-glow hover:bg-gaming-accent' 
