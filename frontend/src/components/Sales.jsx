@@ -309,7 +309,7 @@ const Sales = ({ triggerToast, region }) => {
       ) : (
         <div className="glass-panel rounded-3xl border border-white/5 overflow-hidden max-w-5xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[700px] text-left border-collapse">
               <thead>
                 <tr className="border-b border-white/5 text-[10px] uppercase font-bold text-gaming-muted tracking-wider pb-3">
                   <th className="p-5">Sale Date</th>

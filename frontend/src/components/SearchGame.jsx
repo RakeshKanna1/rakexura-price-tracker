@@ -542,7 +542,7 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
                 <div className="glass-panel p-6 rounded-3xl border border-white/5">
                   <h3 className="text-lg font-bold text-white mb-4">Price Comparison</h3>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full min-w-[600px] text-left border-collapse">
                       <thead>
                         <tr className="border-b border-white/5 text-[10px] uppercase font-bold text-gaming-muted tracking-wider pb-3">
                           <th className="pb-3.5">Platform</th>
