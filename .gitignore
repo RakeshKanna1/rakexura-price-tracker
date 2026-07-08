@@ -1,0 +1,39 @@
+# Environment variables (keep credentials private!)
+.env
+.env.local
+.env.*.local
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+
+# Node/Vite build and dependency artifacts
+node_modules/
+dist/
+build/
+.oxlintrc.json
+.eslintcache
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# Database files
+backend/db_files/
+db_files/
+*.json
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/src/components/*.json
+!frontend/public/manifest.json
+
+# Logs
+*.log
