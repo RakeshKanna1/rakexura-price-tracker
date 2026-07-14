@@ -183,6 +183,7 @@ const Wishlist = ({ onViewDetails, triggerToast, region }) => {
                           {game.currency_symbol}
                         </span>
                         <input
+                          key={`${game.cheapshark_id}_${region}`}
                           type="number"
                           defaultValue={game.sell_price}
                           onBlur={(e) => {

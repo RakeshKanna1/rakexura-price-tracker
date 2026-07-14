@@ -4,6 +4,7 @@ from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from database import get_collection
 from cheapshark import get_game_details_from_api
+from config import REGIONS
 
 logger = logging.getLogger("rakexura-backend")
 
@@ -67,20 +68,27 @@ async def update_single_game_prices(game: dict):
                     {"_id": alert["_id"]},
                     {"$set": {"is_active": False, "triggered_at": datetime.utcnow()}}
                 )
+                
+                alert_region = alert.get("region", "IN")
+                r_info = REGIONS.get(alert_region, REGIONS["IN"])
+                rate = r_info["rate"]
+                symbol = r_info["symbol"]
+                
                 # Log the alert trigger event
                 await logs_col.insert_one({
                     "event_type": "ALERT_TRIGGERED",
                     "game_name": game_name,
-                    "message": f"🚨 Price Alert! '{game_name}' has dropped to ₹{round(current_price * 83.0, 2)} (Target: ₹{round(target_price * 83.0, 2)})",
+                    "message": f"🚨 Price Alert! '{game_name}' has dropped to {symbol}{round(current_price * rate, 2)} (Target: {symbol}{round(target_price * rate, 2)})",
                     "timestamp": datetime.utcnow()
                 })
                 logger.info(f"Alert triggered for {game_name}: Price {current_price} <= Target {target_price}")
                 
-        # Log successful update
+        # Log successful update (defaulting to INR for general update logger)
+        in_rate = REGIONS["IN"]["rate"]
         await logs_col.insert_one({
             "event_type": "PRICE_UPDATED",
             "game_name": game_name,
-            "message": f"Updated price for '{game_name}': Current ₹{round(current_price * 83.0, 2)}",
+            "message": f"Updated price for '{game_name}': Current ₹{round(current_price * in_rate, 2)}",
             "timestamp": datetime.utcnow()
         })
         

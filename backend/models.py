@@ -45,6 +45,7 @@ class AlertCreate(BaseModel):
     cheapshark_id: str
     game_name: str
     target_price: float
+    region: Optional[str] = "IN"
 
 class AlertItem(BaseModel):
     id: str = Field(alias="_id")

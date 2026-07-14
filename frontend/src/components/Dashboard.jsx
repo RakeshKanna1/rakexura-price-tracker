@@ -92,13 +92,18 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
 
   // Periodic countdown updates
   useEffect(() => {
-    let intervalId;
+    let intervalId = null;
+    let active = true;
     if (stats.last_update_time) {
       axios.get(`${API_BASE}/countdown`).then(res => {
+        if (!active) return;
         intervalId = calculateCountdown(res.data.seconds_remaining, res.data.sale_name);
       });
     }
-    return () => clearInterval(intervalId);
+    return () => {
+      active = false;
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [stats.last_update_time]);
 
   const handleRefresh = async () => {

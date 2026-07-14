@@ -944,10 +944,11 @@ async def get_notifications(region: str = "IN"):
     cursor = alerts_col.find({"is_active": False})
     triggered_alerts = await cursor.to_list(length=100)
     for ta in triggered_alerts:
+        alert_target = ta.get("target_price", 0.0)
         notifications.append({
             "type": "TARGET_ALERT",
             "title": "Target Alert Triggered",
-            "message": f"Target Hit! '{ta.get('game_name')}' fell below your target threshold of ₹{round(ta.get('target_price', 0.0) * 83.0, 2)}!",
+            "message": f"Target Hit! '{ta.get('game_name')}' fell below your target threshold of {symbol}{round(alert_target * rate, 2)}!",
             "timestamp": ta.get("triggered_at") or datetime.utcnow()
         })
         
@@ -977,10 +978,16 @@ async def get_notifications(region: str = "IN"):
 @app.post("/api/alerts")
 async def create_alert(alert: AlertCreate):
     alerts_col = get_collection("alerts")
+    region = alert.region or "IN"
+    r_info = REGIONS.get(region, REGIONS["IN"])
+    rate = r_info["rate"]
+    symbol = r_info["symbol"]
+    
     alert_doc = {
         "cheapshark_id": alert.cheapshark_id,
         "game_name": alert.game_name,
-        "target_price": alert.target_price / 83.0,
+        "target_price": alert.target_price / rate,
+        "region": region,
         "is_active": True,
         "created_at": datetime.utcnow()
     }
@@ -989,20 +996,27 @@ async def create_alert(alert: AlertCreate):
     await logs_col.insert_one({
         "event_type": "ALERT_CREATED",
         "game_name": alert.game_name,
-        "message": f"Set price alert for '{alert.game_name}' at target ₹{alert.target_price}",
+        "message": f"Set price alert for '{alert.game_name}' at target {symbol}{alert.target_price}",
         "timestamp": datetime.utcnow()
     })
     return {"message": "Alert created successfully", "id": str(res.inserted_id)}
 
 @app.get("/api/alerts")
-async def get_alerts():
+async def get_alerts(region: str = "IN"):
+    r_info = REGIONS.get(region, REGIONS["IN"])
+    rate = r_info["rate"]
+    symbol = r_info["symbol"]
+    
     alerts_col = get_collection("alerts")
     cursor = alerts_col.find()
     alerts = await cursor.to_list(length=500)
     for a in alerts:
         a["id"] = str(a["_id"])
         del a["_id"]
-        a["target_price"] = round(a["target_price"] * 83.0, 2)
+        # Convert base USD price back to the requested region's rate
+        a["target_price"] = round(a["target_price"] * rate, 2)
+        a["symbol"] = symbol
+        a["region"] = a.get("region", "IN")
     return alerts
 
 @app.delete("/api/alerts/{alert_id}")

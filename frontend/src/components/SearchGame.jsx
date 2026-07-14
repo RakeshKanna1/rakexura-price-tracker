@@ -205,7 +205,8 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
       await axios.post(`${API_BASE}/alerts`, {
         cheapshark_id: gameDetails.cheapshark_id,
         game_name: gameDetails.name,
-        target_price: parseFloat(alertTargetPrice)
+        target_price: parseFloat(alertTargetPrice),
+        region: region
       });
       triggerToast(`Price alert established for ${activeRegion.symbol}${alertTargetPrice}!`, "success");
       setAlertTargetPrice('');

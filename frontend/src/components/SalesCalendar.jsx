@@ -32,7 +32,8 @@ const SalesCalendar = () => {
 
   // Set up countdown intervals ticking every second
   useEffect(() => {
-    if (Object.keys(timers).length === 0) return;
+    const hasTimers = Object.keys(timers).length > 0;
+    if (!hasTimers) return;
 
     const interval = setInterval(() => {
       setTimers(prev => {
@@ -49,7 +50,7 @@ const SalesCalendar = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timers]);
+  }, [Object.keys(timers).length > 0]);
 
   const getCountdownParts = (totalSeconds) => {
     if (totalSeconds <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };

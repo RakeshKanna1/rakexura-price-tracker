@@ -2,16 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Trash2, Calendar, Loader2, CheckCircle2, Clock } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE } from '../config';
-const CURRENCY_CONVERSION_RATE = 83;
-
-const Alerts = ({ triggerToast }) => {
+const Alerts = ({ triggerToast, region }) => {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
 
   const fetchAlerts = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/alerts`);
+      const res = await axios.get(`${API_BASE}/alerts`, { params: { region } });
       setAlerts(res.data);
     } catch (err) {
       console.error(err);
@@ -23,7 +21,7 @@ const Alerts = ({ triggerToast }) => {
 
   useEffect(() => {
     fetchAlerts();
-  }, []);
+  }, [region]);
 
   const handleDelete = async (alertId, gameName) => {
     setDeletingId(alertId);
@@ -81,7 +79,7 @@ const Alerts = ({ triggerToast }) => {
               </thead>
               <tbody className="divide-y divide-white/[0.03]">
                 {alerts.map((alert) => {
-                  const targetINR = Math.round(alert.target_price);
+                  const symbol = alert.symbol || '₹';
                   return (
                     <tr key={alert.id} className="group hover:bg-white/[0.01]">
                       <td className="p-5">
@@ -90,7 +88,7 @@ const Alerts = ({ triggerToast }) => {
                         </span>
                       </td>
                       <td className="p-5 text-right">
-                        <span className="font-black text-sm text-white">₹{targetINR}</span>
+                        <span className="font-black text-sm text-white">{symbol}{alert.target_price}</span>
                       </td>
                       <td className="p-5">
                         {alert.is_active ? (

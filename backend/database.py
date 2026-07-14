@@ -25,7 +25,7 @@ def parse_datetime(val):
                 return datetime.strptime(val, fmt)
             except ValueError:
                 continue
-    return val
+    return datetime.min
 
 class MockCollection:
     def __init__(self, name, filepath):
@@ -92,7 +92,7 @@ class MockCollection:
             # Sort is a list of tuples like [('timestamp', -1)]
             for key, direction in reversed(sort):
                 if key in ["timestamp", "created_at", "triggered_at", "last_checked"]:
-                    results.sort(key=lambda x: parse_datetime(x.get(key, 0)) if x.get(key) is not None else datetime.min, reverse=(direction == -1))
+                    results.sort(key=lambda x: parse_datetime(x.get(key)), reverse=(direction == -1))
                 else:
                     sample_val = None
                     for r in results:
