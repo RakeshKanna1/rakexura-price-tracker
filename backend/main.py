@@ -364,7 +364,11 @@ async def add_to_wishlist(game: WishlistCreate):
 async def get_wishlist(region: str = "IN"):
     """Retrieve all wishlisted games with dynamically converted currencies & margin profits"""
     games_col = get_collection("games")
-    cursor = games_col.find()
+    cursor = games_col.find({}, {
+        "_id": 1, "cheapshark_id": 1, "name": 1, "thumbnail": 1,
+        "current_price": 1, "lowest_ever_price": 1, "original_price": 1,
+        "discount_percent": 1, "platform": 1, "sell_price": 1
+    })
     games = await cursor.to_list(length=200)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -484,11 +488,16 @@ async def add_inventory(item: InventoryCreate, region: str = "IN"):
     return {"message": "Inventory recorded successfully", "id": str(res.inserted_id)}
 
 @app.get("/api/inventory")
-async def get_inventory(region: str = "IN"):
+async def get_inventory(page: int = 1, limit: int = 50, region: str = "IN"):
     """Retrieve purchase history logs"""
     inv_col = get_collection("inventory")
-    cursor = inv_col.find(sort=[("purchase_date", -1)])
-    items = await cursor.to_list(length=1000)
+    skip = (page - 1) * limit
+    cursor = inv_col.find({}, {
+        "_id": 1, "game_name": 1, "purchase_platform": 1,
+        "purchase_price": 1, "quantity": 1, "activation_type": 1,
+        "purchase_date": 1
+    }, sort=[("purchase_date", -1)]).skip(skip).limit(limit)
+    items = await cursor.to_list(length=limit)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
     rate = r_info["rate"]
@@ -518,12 +527,13 @@ async def delete_inventory(item_id: str):
         res = await inv_col.delete_one({"_id": item_id})
         
     if res.deleted_count == 0:
-        cursor = inv_col.find()
-        all_items = await cursor.to_list(length=1000)
-        for item in all_items:
-            if str(item.get("_id")) == item_id:
-                await inv_col.delete_one({"_id": item["_id"]})
-                return {"message": "Inventory item deleted"}
+        try:
+            fallback_res = await inv_col.delete_one({"_id": {"$in": [ObjectId(item_id), item_id]}})
+        except Exception:
+            fallback_res = await inv_col.delete_one({"_id": item_id})
+            
+        if fallback_res.deleted_count > 0:
+            return {"message": "Inventory item deleted successfully"}
         raise HTTPException(status_code=404, detail="Item not found")
     return {"message": "Inventory item deleted successfully"}
 
@@ -563,11 +573,16 @@ async def add_sale(sale: SaleCreate, region: str = "IN"):
     return {"message": "Sale recorded successfully", "id": str(res.inserted_id)}
 
 @app.get("/api/sales")
-async def get_sales(region: str = "IN"):
+async def get_sales(page: int = 1, limit: int = 50, region: str = "IN"):
     """List customer sales ledger"""
     sales_col = get_collection("sales")
-    cursor = sales_col.find(sort=[("timestamp", -1)])
-    sales = await cursor.to_list(length=1000)
+    skip = (page - 1) * limit
+    cursor = sales_col.find({}, {
+        "_id": 1, "customer_name": 1, "whatsapp": 1, "game_name": 1,
+        "sell_price": 1, "purchase_cost": 1, "profit": 1,
+        "payment_status": 1, "delivery_status": 1, "timestamp": 1
+    }, sort=[("timestamp", -1)]).skip(skip).limit(limit)
+    sales = await cursor.to_list(length=limit)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
     rate = r_info["rate"]
@@ -594,7 +609,9 @@ async def get_sales(region: str = "IN"):
 async def get_sales_stats(region: str = "IN"):
     """Calculate core revenue/profit analytics values"""
     sales_col = get_collection("sales")
-    cursor = sales_col.find()
+    cursor = sales_col.find({}, {
+        "sell_price": 1, "purchase_cost": 1, "profit": 1, "timestamp": 1
+    })
     sales = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -642,12 +659,13 @@ async def delete_sale(sale_id: str):
         res = await sales_col.delete_one({"_id": sale_id})
         
     if res.deleted_count == 0:
-        cursor = sales_col.find()
-        all_sales = await cursor.to_list(length=1000)
-        for s in all_sales:
-            if str(s.get("_id")) == sale_id:
-                await sales_col.delete_one({"_id": s["_id"]})
-                return {"message": "Sale deleted"}
+        try:
+            fallback_res = await sales_col.delete_one({"_id": {"$in": [ObjectId(sale_id), sale_id]}})
+        except Exception:
+            fallback_res = await sales_col.delete_one({"_id": sale_id})
+            
+        if fallback_res.deleted_count > 0:
+            return {"message": "Sale deleted successfully"}
         raise HTTPException(status_code=404, detail="Sale not found")
     return {"message": "Sale deleted successfully"}
 
@@ -662,7 +680,9 @@ async def get_analytics(region: str = "IN"):
     r_info = REGIONS.get(region, REGIONS["IN"])
     rate = r_info["rate"]
     
-    cursor = sales_col.find()
+    cursor = sales_col.find({}, {
+        "game_name": 1, "sell_price": 1, "purchase_cost": 1, "profit": 1, "timestamp": 1
+    })
     sales = await cursor.to_list(length=1000)
     
     selling_stats = {}
@@ -684,7 +704,7 @@ async def get_analytics(region: str = "IN"):
     highest_profit = [{"name": k, "value": round(v, 2)} for k, v in profit_stats.items()]
     best_roi = [{"name": k, "value": round(v, 2)} for k, v in roi_stats.items()]
     
-    cursor = trending_col.find(sort=[("search_count", -1)], limit=5)
+    cursor = trending_col.find({}, {"name": 1, "search_count": 1}, sort=[("search_count", -1)], limit=5)
     trending_games = await cursor.to_list(length=5)
     most_viewed = [{"name": g["name"], "value": g.get("search_count", 0)} for g in trending_games]
     
@@ -791,7 +811,11 @@ async def get_calendar():
 async def get_suggestions(region: str = "IN"):
     """Recommend purchases based on discount depth and margins"""
     games_col = get_collection("games")
-    cursor = games_col.find()
+    cursor = games_col.find({}, {
+        "cheapshark_id": 1, "name": 1, "thumbnail": 1, "current_price": 1,
+        "lowest_ever_price": 1, "original_price": 1, "discount_percent": 1,
+        "sell_price": 1
+    })
     games = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -927,7 +951,9 @@ async def get_notifications(region: str = "IN"):
     symbol = r_info["symbol"]
     
     # 1. Historical lowest prices alerts
-    cursor = games_col.find()
+    cursor = games_col.find({}, {
+        "current_price": 1, "lowest_ever_price": 1, "name": 1, "platform": 1
+    })
     games = await cursor.to_list(length=1000)
     for g in games:
         buy = g.get("current_price", 0.0)
@@ -941,7 +967,9 @@ async def get_notifications(region: str = "IN"):
             })
             
     # 2. Triggered price alert thresholds
-    cursor = alerts_col.find({"is_active": False})
+    cursor = alerts_col.find({"is_active": False}, {
+        "game_name": 1, "target_price": 1, "triggered_at": 1
+    })
     triggered_alerts = await cursor.to_list(length=100)
     for ta in triggered_alerts:
         alert_target = ta.get("target_price", 0.0)
@@ -1024,12 +1052,13 @@ async def delete_alert(alert_id: str):
     alerts_col = get_collection("alerts")
     res = await alerts_col.delete_one({"_id": alert_id})
     if res.deleted_count == 0:
-        cursor = alerts_col.find()
-        all_alerts = await cursor.to_list(length=500)
-        for a in all_alerts:
-            if str(a.get("_id")) == alert_id:
-                await alerts_col.delete_one({"_id": a["_id"]})
-                return {"message": "Alert deleted"}
+        try:
+            fallback_res = await alerts_col.delete_one({"_id": {"$in": [ObjectId(alert_id), alert_id]}})
+        except Exception:
+            fallback_res = await alerts_col.delete_one({"_id": alert_id})
+            
+        if fallback_res.deleted_count > 0:
+            return {"message": "Alert deleted successfully"}
         raise HTTPException(status_code=404, detail="Alert not found")
     return {"message": "Alert deleted successfully"}
 
@@ -1109,7 +1138,10 @@ async def get_dashboard_stats(region: str = "IN"):
     total_games = await games_col.count_documents({})
     active_alerts = await alerts_col.count_documents({"is_active": True})
     
-    cursor = games_col.find()
+    cursor = games_col.find({}, {
+        "discount_percent": 1, "current_price": 1, "original_price": 1,
+        "cheapshark_id": 1, "name": 1, "thumbnail": 1, "platform": 1
+    })
     games = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])
@@ -1241,7 +1273,10 @@ async def export_price_history_csv(game_id: str, region: str = "IN"):
 @app.get("/api/export/wishlist")
 async def export_wishlist_csv(region: str = "IN"):
     games_col = get_collection("games")
-    cursor = games_col.find()
+    cursor = games_col.find({}, {
+        "name": 1, "cheapshark_id": 1, "current_price": 1, "sell_price": 1,
+        "platform": 1, "discount_percent": 1, "last_checked": 1
+    })
     games = await cursor.to_list(length=1000)
     
     r_info = REGIONS.get(region, REGIONS["IN"])

@@ -58,7 +58,7 @@ class MockCollection:
         res = await cursor.to_list()
         return res[0] if res else None
 
-    def find(self, filter=None, sort=None, limit=None):
+    def find(self, filter=None, projection=None, sort=None, limit=None):
         data = self._read()
         results = []
         
@@ -117,6 +117,12 @@ class MockCollection:
                 if not self.items:
                     raise StopAsyncIteration
                 return self.items.pop(0)
+            def skip(self, n):
+                self.items = self.items[n:]
+                return self
+            def limit(self, n):
+                self.items = self.items[:n]
+                return self
             async def to_list(self, length=None):
                 if length is not None:
                     return self.items[:length]
@@ -250,10 +256,21 @@ async def init_db():
             client = AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
             
         # Verify connection
-        await client.admin.command('ping')
         db = client[DB_NAME]
         is_mock = False
         logger.info(f"Successfully connected to MongoDB database '{DB_NAME}'!")
+        
+        # Create database indexes asynchronously
+        try:
+            await db.games.create_index("cheapshark_id", unique=True)
+            await db.price_history.create_index([("cheapshark_id", 1), ("timestamp", -1)])
+            await db.alerts.create_index([("cheapshark_id", 1), ("is_active", 1)])
+            await db.sales.create_index("timestamp")
+            await db.inventory.create_index("purchase_date")
+            await db.logs.create_index("timestamp")
+            logger.info("Database indexes successfully initialized!")
+        except Exception as idx_err:
+            logger.error(f"Failed to initialize database indexes: {idx_err}")
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB ({str(e)}). Falling back to local JSON file database.")
         db = MockDatabase()
