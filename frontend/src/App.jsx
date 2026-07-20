@@ -11,6 +11,7 @@ import Analytics from './components/Analytics';
 import SalesCalendar from './components/SalesCalendar';
 import Suggestions from './components/Suggestions';
 import Toast from './components/Toast';
+import AiInsights from './components/AiInsights';
 import { Bell, BellOff, X, Flame, TrendingDown, Clock, ShieldAlert, Menu } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE } from './config';
@@ -79,6 +80,12 @@ function App() {
           <Dashboard 
             setActiveTab={setActiveTab} 
             triggerToast={triggerToast} 
+            region={region}
+          />
+        );
+      case 'ai_insights':
+        return (
+          <AiInsights 
             region={region}
           />
         );

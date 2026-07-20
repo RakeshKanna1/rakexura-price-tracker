@@ -29,6 +29,8 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
   const [alertTargetPrice, setAlertTargetPrice] = useState('');
   const [settingAlert, setSettingAlert] = useState(false);
   const [addingWishlist, setAddingWishlist] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
 
   const activeRegion = REGION_RATES[region] || REGION_RATES.IN;
   const searchTimeoutRef = useRef(null);
@@ -75,6 +77,18 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
     } finally {
       setDetailsLoading(false);
     }
+
+    setAiAnalysis('');
+    setLoadingAi(true);
+    try {
+      const aiRes = await axios.get(`${API_BASE}/ai/analyze/${cheapsharkId}`, { params: { region } });
+      setAiAnalysis(aiRes.data.analysis);
+    } catch (aiErr) {
+      console.error(aiErr);
+      setAiAnalysis("Failed to load Gemini AI Analysis.");
+    } finally {
+      setLoadingAi(false);
+    }
   };
 
   // Triggered when region updates
@@ -94,6 +108,17 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
       axios.get(`${API_BASE}/history/${selectedGameId}`, { params: { days: historyDays, region } })
         .then(res => setHistoryData(res.data))
         .catch(err => console.error(err));
+
+      setLoadingAi(true);
+      axios.get(`${API_BASE}/ai/analyze/${selectedGameId}`, { params: { region } })
+        .then(res => {
+          setAiAnalysis(res.data.analysis);
+          setLoadingAi(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setLoadingAi(false);
+        });
     }
   }, [region]);
 
@@ -538,6 +563,27 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
                     </div>
                   </div>
                 )}
+
+                {/* Gemini AI Arbitrage Evaluation */}
+                <div className="glass-panel p-6 rounded-3xl border border-gaming-accent/20 bg-gradient-to-r from-gaming-accent/5 to-gaming-blue/5 relative overflow-hidden">
+                  <div className="absolute right-0 top-0 p-4 opacity-5 pointer-events-none">
+                    <Sparkles className="w-16 h-16 text-gaming-accent animate-pulse" />
+                  </div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-4 h-4 text-gaming-accent" />
+                    <span className="text-[10px] uppercase font-black tracking-widest text-gaming-accent">Gemini AI Arbitrage & Deal Analysis</span>
+                  </div>
+                  {loadingAi ? (
+                    <div className="py-4 flex items-center gap-3 animate-pulse">
+                      <Loader2 className="w-4 h-4 text-gaming-accent animate-spin" />
+                      <span className="text-xs text-gaming-muted">Evaluating key resale potential...</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gaming-text leading-relaxed font-semibold">
+                      {aiAnalysis || "No analysis available."}
+                    </p>
+                  )}
+                </div>
 
                 {/* Price Comparison Table */}
                 <div className="glass-panel p-6 rounded-3xl border border-white/5">

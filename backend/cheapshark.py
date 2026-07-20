@@ -10,7 +10,7 @@ logger = logging.getLogger("rakexura-backend")
 
 # Global HTTP client reuse connection pool for speed (skips TCP handshake / SSL negotiation on every request)
 HTTP_CLIENT = httpx.AsyncClient(
-    headers={"User-Agent": "RakexuraPriceTracker/1.0"},
+    headers={"User-Agent": "RakexuraArbitrageBIEngine/1.0 (contact@rakexura-gaming.com)"},
     timeout=10.0,
     limits=httpx.Limits(max_keepalive_connections=20, max_connections=30)
 )

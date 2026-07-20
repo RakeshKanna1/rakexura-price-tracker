@@ -10,12 +10,14 @@ import {
   BarChart3, 
   Calendar, 
   Lightbulb,
+  Sparkles,
   X
 } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen }) => {
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
+    { id: 'ai_insights', name: 'Gemini AI Insights', icon: Sparkles },
     { id: 'search', name: 'Search Games', icon: Search },
     { id: 'wishlist', name: 'Wishlist / Margins', icon: Heart },
     { id: 'inventory', name: 'Purchase Stock', icon: Database },

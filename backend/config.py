@@ -7,6 +7,7 @@ load_dotenv()
 # MongoDB Configuration
 MONGODB_URI = os.getenv("MONGODB_URI", "")
 DB_NAME = os.getenv("DB_NAME", "rakexura_tracker")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # CheapShark API Configuration
 CHEAPSHARK_API_URL = "https://www.cheapshark.com/api/1.0"

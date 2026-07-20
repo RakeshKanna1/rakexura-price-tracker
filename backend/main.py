@@ -14,6 +14,7 @@ from cheapshark import search_games_from_api, get_game_details_from_api, invalid
 from scheduler import start_scheduler, shutdown_scheduler, update_all_prices, update_single_game_prices
 from models import WishlistCreate, AlertCreate, InventoryCreate, SaleCreate
 from config import REGIONS, STORE_MAPPING
+from ai_service import get_game_ai_analysis, get_portfolio_insights, answer_chat_query
 
 app = FastAPI(title="Rakexura Business Intelligence API", version="3.0.0")
 
@@ -1134,6 +1135,8 @@ async def get_dashboard_stats(region: str = "IN"):
     games_col = get_collection("games")
     alerts_col = get_collection("alerts")
     logs_col = get_collection("logs")
+    sales_col = get_collection("sales")
+    inv_col = get_collection("inventory")
     
     total_games = await games_col.count_documents({})
     active_alerts = await alerts_col.count_documents({"is_active": True})
@@ -1185,6 +1188,21 @@ async def get_dashboard_stats(region: str = "IN"):
     last_log = await logs_col.find_one({"event_type": {"$in": ["PRICE_UPDATED", "SYSTEM_START"]}}, sort=[("timestamp", -1)])
     last_update = last_log["timestamp"] if last_log else datetime.utcnow()
     
+    # Calculate ledger summary metrics
+    sales_cursor = sales_col.find({}, {"sell_price": 1, "profit": 1})
+    sales_list = await sales_cursor.to_list(length=2000)
+    total_revenue_usd = sum(s.get("sell_price", 0.0) for s in sales_list)
+    total_profit_usd = sum(s.get("profit", 0.0) for s in sales_list)
+    
+    inv_cursor = inv_col.find({}, {"purchase_price": 1, "quantity": 1})
+    inv_list = await inv_cursor.to_list(length=2000)
+    total_stock_value_usd = sum(item.get("purchase_price", 0.0) * item.get("quantity", 1) for item in inv_list)
+    
+    total_revenue = round(total_revenue_usd * rate, 2)
+    total_profit = round(total_profit_usd * rate, 2)
+    total_stock_value = round(total_stock_value_usd * rate, 2)
+    total_sales = len(sales_list)
+    
     return {
         "total_tracked": total_games,
         "lowest_prices_today": deals_today,
@@ -1192,8 +1210,179 @@ async def get_dashboard_stats(region: str = "IN"):
         "last_update_time": last_update,
         "top_discounts": top_discounts,
         "biggest_discount_today": biggest_disc_game or {"name": "None", "discount_percent": 0.0, "thumbnail": ""},
-        "currency_symbol": symbol
+        "currency_symbol": symbol,
+        "total_revenue": total_revenue,
+        "total_profit": total_profit,
+        "total_stock_value": total_stock_value,
+        "total_sales": total_sales
     }
+
+# --- GEMINI AI INTEGRATION ENDPOINTS ---
+
+@app.get("/api/ai/analyze/{game_id}")
+async def analyze_game_ai(game_id: str, region: str = "IN"):
+    """Use Gemini AI to analyze a game's resale margins and market viability"""
+    try:
+        details = await get_game_details_from_api(game_id, region)
+        r_info = REGIONS.get(region, REGIONS["IN"])
+        symbol = r_info["symbol"]
+        
+        # Calculate stats for prompt
+        history_col = get_collection("price_history")
+        cursor = history_col.find({"cheapshark_id": game_id})
+        history_points = await cursor.to_list(length=1000)
+        
+        rate = r_info["rate"]
+        prices_usd = [p["price"] for p in history_points]
+        current_usd = details["lowest_price"] / rate if rate > 0 else details["lowest_price"]
+        cheapest_ever_usd = details["cheapest_ever"] / rate if rate > 0 else details["cheapest_ever"]
+        
+        cheapest_deal = details["platform_prices"][0] if details["platform_prices"] else None
+        orig_usd = cheapest_deal["original_price"] / rate if (cheapest_deal and rate > 0) else current_usd * 1.4
+        
+        all_lows = prices_usd + [cheapest_ever_usd, current_usd]
+        all_highs = prices_usd + [orig_usd]
+        
+        hist_lowest = min(all_lows) * rate
+        hist_highest = max(all_highs) * rate
+        
+        if len(prices_usd) >= 3:
+            hist_average = (sum(prices_usd) / len(prices_usd)) * rate
+        else:
+            all_points = prices_usd + [cheapest_ever_usd, orig_usd]
+            hist_average = (sum(all_points) / len(all_points)) * rate
+
+        discount = cheapest_deal["discount_percent"] if cheapest_deal else 0.0
+
+        analysis = await get_game_ai_analysis(
+            game_name=details["name"],
+            current_price=details["lowest_price"],
+            original_price=orig_usd * rate,
+            discount=discount,
+            hist_lowest=hist_lowest,
+            hist_highest=hist_highest,
+            hist_avg=hist_average,
+            currency_symbol=symbol
+        )
+        return {"analysis": analysis}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate AI analysis: {str(e)}")
+
+@app.get("/api/ai/insights")
+async def get_portfolio_ai_insights(region: str = "IN"):
+    """Get Gemini AI analytics summary of current inventory and sales portfolio"""
+    try:
+        games_col = get_collection("games")
+        sales_col = get_collection("sales")
+        inv_col = get_collection("inventory")
+        
+        r_info = REGIONS.get(region, REGIONS["IN"])
+        rate = r_info["rate"]
+        symbol = r_info["symbol"]
+        
+        games_cursor = games_col.find({})
+        games = await games_cursor.to_list(length=100)
+        wishlist_summary = []
+        for g in games:
+            buy_p = g.get("current_price", 0.0) * rate
+            stored_sell = g.get("sell_price")
+            sell_p = (stored_sell if stored_sell is not None else g.get("current_price", 0.0) * 1.3) * rate
+            wishlist_summary.append({
+                "name": g.get("name"),
+                "current_price": round(buy_p, 2),
+                "sell_price": round(sell_p, 2),
+                "discount_percent": g.get("discount_percent", 0.0)
+            })
+            
+        sales_cursor = sales_col.find({})
+        sales = await sales_cursor.to_list(length=100)
+        sales_summary = []
+        for s in sales:
+            sell_p = s.get("sell_price", 0.0) * rate
+            cost_p = s.get("purchase_cost", 0.0) * rate
+            profit = s.get("profit", 0.0) * rate
+            sales_summary.append({
+                "game_name": s.get("game_name"),
+                "sell_price": round(sell_p, 2),
+                "purchase_cost": round(cost_p, 2),
+                "profit": round(profit, 2)
+            })
+            
+        inv_cursor = inv_col.find({})
+        inv_items = await inv_cursor.to_list(length=100)
+        inventory_summary = []
+        for i in inv_items:
+            buy_p = i.get("purchase_price", 0.0) * rate
+            inventory_summary.append({
+                "game_name": i.get("game_name"),
+                "quantity": i.get("quantity", 1),
+                "purchase_price": round(buy_p, 2),
+                "purchase_platform": i.get("purchase_platform", "Unknown")
+            })
+            
+        report = await get_portfolio_insights(wishlist_summary, sales_summary, inventory_summary, symbol)
+        return {"report": report}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate portfolio report: {str(e)}")
+
+class ChatPayload(BaseModel):
+    message: str
+
+@app.post("/api/ai/chat")
+async def chat_with_advisor(payload: ChatPayload, region: str = "IN"):
+    """Interactively chat with Gemini AI using portfolio context"""
+    try:
+        games_col = get_collection("games")
+        sales_col = get_collection("sales")
+        inv_col = get_collection("inventory")
+        
+        r_info = REGIONS.get(region, REGIONS["IN"])
+        rate = r_info["rate"]
+        symbol = r_info["symbol"]
+        
+        games_cursor = games_col.find({})
+        games = await games_cursor.to_list(length=50)
+        wishlist_summary = []
+        for g in games:
+            buy_p = g.get("current_price", 0.0) * rate
+            stored_sell = g.get("sell_price")
+            sell_p = (stored_sell if stored_sell is not None else g.get("current_price", 0.0) * 1.3) * rate
+            wishlist_summary.append({
+                "name": g.get("name"),
+                "current_price": round(buy_p, 2),
+                "sell_price": round(sell_p, 2),
+                "discount_percent": g.get("discount_percent", 0.0)
+            })
+            
+        sales_cursor = sales_col.find({})
+        sales = await sales_cursor.to_list(length=50)
+        sales_summary = []
+        for s in sales:
+            sell_p = s.get("sell_price", 0.0) * rate
+            cost_p = s.get("purchase_cost", 0.0) * rate
+            profit = s.get("profit", 0.0) * rate
+            sales_summary.append({
+                "game_name": s.get("game_name"),
+                "sell_price": round(sell_p, 2),
+                "purchase_cost": round(cost_p, 2),
+                "profit": round(profit, 2)
+            })
+            
+        inv_cursor = inv_col.find({})
+        inv_items = await inv_cursor.to_list(length=50)
+        inventory_summary = []
+        for i in inv_items:
+            buy_p = i.get("purchase_price", 0.0) * rate
+            inventory_summary.append({
+                "game_name": i.get("game_name"),
+                "quantity": i.get("quantity", 1),
+                "purchase_price": round(buy_p, 2)
+            })
+            
+        response = await answer_chat_query(payload.message, wishlist_summary, sales_summary, inventory_summary, symbol)
+        return {"response": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process chat: {str(e)}")
 
 @app.get("/api/countdown")
 async def get_steam_sale_countdown():

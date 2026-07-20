@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, TrendingDown, Bell, Clock, RefreshCw, ArrowRight, Flame } from 'lucide-react';
+import { LayoutDashboard, TrendingDown, Bell, Clock, RefreshCw, ArrowRight, Flame, Coins, TrendingUp, Database, ShoppingBag } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE, cacheGet, cacheSet } from '../config';
 
@@ -11,7 +11,11 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
     last_update_time: null,
     top_discounts: [],
     biggest_discount_today: { name: 'None', discount_percent: 0.0, thumbnail: '' },
-    currency_symbol: '₹'
+    currency_symbol: '₹',
+    total_revenue: 0,
+    total_profit: 0,
+    total_stock_value: 0,
+    total_sales: 0
   });
   
   const [trending, setTrending] = useState([]);
@@ -160,53 +164,111 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Metric 1: Tracked */}
-        <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
-          <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-            <LayoutDashboard className="w-32 h-32 text-white" />
+      <div className="space-y-6">
+        <div>
+          <h4 className="text-[10px] uppercase font-black tracking-widest text-gaming-muted mb-3">Wishlist & Alerts Summary</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Metric 1: Tracked */}
+            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
+              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <LayoutDashboard className="w-32 h-32 text-white" />
+              </div>
+              <div className="p-3 bg-gaming-accent/10 border border-gaming-accent/20 w-fit rounded-xl text-gaming-accent mb-4">
+                <LayoutDashboard className="w-5 h-5" />
+              </div>
+              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Tracked Games</p>
+              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.total_tracked}</h3>
+            </div>
+
+            {/* Metric 2: Price Drops */}
+            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
+              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <TrendingDown className="w-32 h-32 text-white" />
+              </div>
+              <div className="p-3 bg-gaming-green/10 border border-gaming-green/20 w-fit rounded-xl text-gaming-green mb-4">
+                <TrendingDown className="w-5 h-5" />
+              </div>
+              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Deals Found Today</p>
+              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.lowest_prices_today}</h3>
+            </div>
+
+            {/* Metric 3: Active Alerts */}
+            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
+              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <Bell className="w-32 h-32 text-white" />
+              </div>
+              <div className="p-3 bg-gaming-blue/10 border border-gaming-blue/20 w-fit rounded-xl text-gaming-blue mb-4">
+                <Bell className="w-5 h-5" />
+              </div>
+              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Active Price Alerts</p>
+              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.active_alerts}</h3>
+            </div>
+
+            {/* Metric 4: Last Checked */}
+            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
+              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <Clock className="w-32 h-32 text-white" />
+              </div>
+              <div className="p-3 bg-white/[0.04] border border-white/[0.08] w-fit rounded-xl text-gaming-muted mb-4">
+                <Clock className="w-5 h-5" />
+              </div>
+              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Last Update Check</p>
+              <h3 className="text-base font-extrabold text-white mt-3 truncate">{formatLastChecked(stats.last_update_time)}</h3>
+            </div>
           </div>
-          <div className="p-3 bg-gaming-accent/10 border border-gaming-accent/20 w-fit rounded-xl text-gaming-accent mb-4">
-            <LayoutDashboard className="w-5 h-5" />
-          </div>
-          <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Tracked Games</p>
-          <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.total_tracked}</h3>
         </div>
 
-        {/* Metric 2: Price Drops */}
-        <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
-          <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-            <TrendingDown className="w-32 h-32 text-white" />
-          </div>
-          <div className="p-3 bg-gaming-green/10 border border-gaming-green/20 w-fit rounded-xl text-gaming-green mb-4">
-            <TrendingDown className="w-5 h-5" />
-          </div>
-          <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Deals Found Today</p>
-          <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.lowest_prices_today}</h3>
-        </div>
+        <div>
+          <h4 className="text-[10px] uppercase font-black tracking-widest text-gaming-muted mb-3">Financial Ledger Summary</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Revenue */}
+            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group border-l-2 border-gaming-blue">
+              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <TrendingUp className="w-32 h-32 text-white" />
+              </div>
+              <div className="p-3 bg-gaming-blue/10 border border-gaming-blue/20 w-fit rounded-xl text-gaming-blue mb-4">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Total Sales Revenue</p>
+              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.currency_symbol}{stats.total_revenue || 0}</h3>
+            </div>
 
-        {/* Metric 3: Active Alerts */}
-        <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
-          <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-            <Bell className="w-32 h-32 text-white" />
-          </div>
-          <div className="p-3 bg-gaming-blue/10 border border-gaming-blue/20 w-fit rounded-xl text-gaming-blue mb-4">
-            <Bell className="w-5 h-5" />
-          </div>
-          <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Active Price Alerts</p>
-          <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.active_alerts}</h3>
-        </div>
+            {/* Profit */}
+            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group border-l-2 border-gaming-green">
+              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <Coins className="w-32 h-32 text-white" />
+              </div>
+              <div className="p-3 bg-gaming-green/10 border border-gaming-green/20 w-fit rounded-xl text-gaming-green mb-4">
+                <Coins className="w-5 h-5" />
+              </div>
+              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Net Resell Profit</p>
+              <h3 className="text-3xl font-extrabold text-gaming-green mt-1.5">{stats.currency_symbol}{stats.total_profit || 0}</h3>
+            </div>
 
-        {/* Metric 4: Last Checked */}
-        <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
-          <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-            <Clock className="w-32 h-32 text-white" />
+            {/* Stock Value */}
+            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group border-l-2 border-gaming-accent">
+              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <Database className="w-32 h-32 text-white" />
+              </div>
+              <div className="p-3 bg-gaming-accent/10 border border-gaming-accent/20 w-fit rounded-xl text-gaming-accent mb-4">
+                <Database className="w-5 h-5" />
+              </div>
+              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Inventory Asset Value</p>
+              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.currency_symbol}{stats.total_stock_value || 0}</h3>
+            </div>
+
+            {/* Sales Count */}
+            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group border-l-2 border-white/10">
+              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <ShoppingBag className="w-32 h-32 text-white" />
+              </div>
+              <div className="p-3 bg-white/[0.04] border border-white/[0.08] w-fit rounded-xl text-gaming-muted mb-4">
+                <ShoppingBag className="w-5 h-5" />
+              </div>
+              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Completed Sales Logs</p>
+              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.total_sales || 0}</h3>
+            </div>
           </div>
-          <div className="p-3 bg-white/[0.04] border border-white/[0.08] w-fit rounded-xl text-gaming-muted mb-4">
-            <Clock className="w-5 h-5" />
-          </div>
-          <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Last Update Check</p>
-          <h3 className="text-base font-extrabold text-white mt-3 truncate">{formatLastChecked(stats.last_update_time)}</h3>
         </div>
       </div>
 
