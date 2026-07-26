@@ -124,10 +124,8 @@ QUERY_EXPANSIONS = {
     "ea fc": "EA Sports FC",
     "fc 24": "EA Sports FC 24",
     "fc 25": "EA Sports FC 25",
-    "fc 26": "EA Sports FC 26",
     "fc24": "EA Sports FC 24",
     "fc25": "EA Sports FC 25",
-    "fc26": "EA Sports FC 26",
     "cod bo": "Call of Duty Black Ops",
     "cod mw": "Call of Duty Modern Warfare",
     "cod": "Call of Duty",
@@ -271,31 +269,31 @@ async def get_game_history(game_id: str, days: int = 30, region: str = "IN"):
     # If no history exists, generate a simulated trend on the fly
     if not history:
         try:
-            details = await get_game_details_from_api(game_id, region)
-            current_price = details["lowest_price"]
-            original_price = details["platform_prices"][0]["original_price"] if details["platform_prices"] else current_price * 1.5
+            details_usd = await get_game_details_from_api(game_id, "US")
+            current_price_usd = details_usd["lowest_price"]
+            original_price_usd = details_usd["platform_prices"][0]["original_price"] if details_usd["platform_prices"] else current_price_usd * 1.5
             
             now = datetime.utcnow()
             intervals = [90, 60, 30, 14, 7]
-            price_progression = [original_price]
+            price_progression = [original_price_usd]
             steps = len(intervals)
             
             for i in range(1, steps):
                 pct = i / steps
-                val = original_price - (original_price - current_price) * pct
+                val = original_price_usd - (original_price_usd - current_price_usd) * pct
                 val *= random.uniform(0.9, 1.1)
-                val = min(max(val, current_price), original_price)
+                val = min(max(val, current_price_usd), original_price_usd)
                 price_progression.append(round(val, 2))
                 
-            price_progression.append(current_price)
+            price_progression.append(current_price_usd)
             days_ago_list = intervals + [0]
             
             simulated_history = []
-            for days_ago, price in zip(days_ago_list, price_progression):
+            for days_ago, p_usd in zip(days_ago_list, price_progression):
                 ts = now - timedelta(days=days_ago)
                 if ts >= cutoff_date:
                     simulated_history.append({
-                        "price": price,
+                        "price": round(p_usd * rate, 2),
                         "date": ts.strftime("%b %d"),
                         "timestamp": ts
                     })
@@ -522,19 +520,12 @@ async def get_inventory(page: int = 1, limit: int = 50, region: str = "IN"):
 async def delete_inventory(item_id: str):
     """Untrack or delete an inventory item"""
     inv_col = get_collection("inventory")
-    try:
-        res = await inv_col.delete_one({"_id": ObjectId(item_id)})
-    except Exception:
-        res = await inv_col.delete_one({"_id": item_id})
+    query_ids = [item_id]
+    if ObjectId.is_valid(item_id):
+        query_ids.append(ObjectId(item_id))
         
+    res = await inv_col.delete_one({"_id": {"$in": query_ids}})
     if res.deleted_count == 0:
-        try:
-            fallback_res = await inv_col.delete_one({"_id": {"$in": [ObjectId(item_id), item_id]}})
-        except Exception:
-            fallback_res = await inv_col.delete_one({"_id": item_id})
-            
-        if fallback_res.deleted_count > 0:
-            return {"message": "Inventory item deleted successfully"}
         raise HTTPException(status_code=404, detail="Item not found")
     return {"message": "Inventory item deleted successfully"}
 
@@ -654,19 +645,12 @@ async def get_sales_stats(region: str = "IN"):
 @app.delete("/api/sales/{sale_id}")
 async def delete_sale(sale_id: str):
     sales_col = get_collection("sales")
-    try:
-        res = await sales_col.delete_one({"_id": ObjectId(sale_id)})
-    except Exception:
-        res = await sales_col.delete_one({"_id": sale_id})
+    query_ids = [sale_id]
+    if ObjectId.is_valid(sale_id):
+        query_ids.append(ObjectId(sale_id))
         
+    res = await sales_col.delete_one({"_id": {"$in": query_ids}})
     if res.deleted_count == 0:
-        try:
-            fallback_res = await sales_col.delete_one({"_id": {"$in": [ObjectId(sale_id), sale_id]}})
-        except Exception:
-            fallback_res = await sales_col.delete_one({"_id": sale_id})
-            
-        if fallback_res.deleted_count > 0:
-            return {"message": "Sale deleted successfully"}
         raise HTTPException(status_code=404, detail="Sale not found")
     return {"message": "Sale deleted successfully"}
 
@@ -1051,15 +1035,12 @@ async def get_alerts(region: str = "IN"):
 @app.delete("/api/alerts/{alert_id}")
 async def delete_alert(alert_id: str):
     alerts_col = get_collection("alerts")
-    res = await alerts_col.delete_one({"_id": alert_id})
+    query_ids = [alert_id]
+    if ObjectId.is_valid(alert_id):
+        query_ids.append(ObjectId(alert_id))
+        
+    res = await alerts_col.delete_one({"_id": {"$in": query_ids}})
     if res.deleted_count == 0:
-        try:
-            fallback_res = await alerts_col.delete_one({"_id": {"$in": [ObjectId(alert_id), alert_id]}})
-        except Exception:
-            fallback_res = await alerts_col.delete_one({"_id": alert_id})
-            
-        if fallback_res.deleted_count > 0:
-            return {"message": "Alert deleted successfully"}
         raise HTTPException(status_code=404, detail="Alert not found")
     return {"message": "Alert deleted successfully"}
 
