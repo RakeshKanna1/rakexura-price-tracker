@@ -794,12 +794,12 @@ async def get_calendar():
 
 @app.get("/api/suggestions")
 async def get_suggestions(region: str = "IN"):
-    """Recommend purchases based on discount depth and margins"""
+    """Recommend game purchases based on active sales, historical lows, and deep discounts"""
     games_col = get_collection("games")
     cursor = games_col.find({}, {
         "cheapshark_id": 1, "name": 1, "thumbnail": 1, "current_price": 1,
         "lowest_ever_price": 1, "original_price": 1, "discount_percent": 1,
-        "sell_price": 1
+        "platform": 1
     })
     games = await cursor.to_list(length=1000)
     
@@ -809,19 +809,14 @@ async def get_suggestions(region: str = "IN"):
     
     historical_lows = []
     deep_discounts = []
-    best_resale = []
-    price_risk = []
+    on_sale_now = []
+    under_bargain = []
     
     for g in games:
         buy_p = g.get("current_price", 0.0) * rate
         low_p = g.get("lowest_ever_price", 0.0) * rate
         orig_p = g.get("original_price", 0.0) * rate
         disc = g.get("discount_percent", 0.0)
-        
-        stored_sell = g.get("sell_price")
-        sell_p = (stored_sell if stored_sell is not None else g.get("current_price", 0.0) * 1.3) * rate
-        profit = sell_p - buy_p
-        margin = (profit / sell_p) * 100 if sell_p > 0 else 0
         
         game_info = {
             "cheapshark_id": g.get("cheapshark_id"),
@@ -831,21 +826,18 @@ async def get_suggestions(region: str = "IN"):
             "original_price": round(orig_p, 2),
             "discount": disc,
             "lowest_ever": round(low_p, 2),
-            "sell_price": round(sell_p, 2),
-            "profit": round(profit, 2),
-            "margin": round(margin, 2),
-            "platform": g.get("platform"),
+            "platform": g.get("platform", "Steam"),
             "currency_symbol": symbol
         }
         
         if buy_p <= low_p * 1.03:
             historical_lows.append(game_info)
-        if disc >= 75.0:
+        if disc >= 70.0:
             deep_discounts.append(game_info)
-        if disc >= 60.0 and margin >= 25.0:
-            best_resale.append(game_info)
-        if disc >= 50.0:
-            price_risk.append(game_info)
+        if disc >= 40.0:
+            on_sale_now.append(game_info)
+        if buy_p <= 299.0 * (rate / 83.0):
+            under_bargain.append(game_info)
             
     if not games:
         mock_games = [
@@ -857,9 +849,6 @@ async def get_suggestions(region: str = "IN"):
                 "original_price": round(1999.0 * (rate / 83.0), 2),
                 "discount": 63.0,
                 "lowest_ever": round(749.0 * (rate / 83.0), 2),
-                "sell_price": round(999.0 * (rate / 83.0), 2),
-                "profit": round(250.0 * (rate / 83.0), 2),
-                "margin": 25.0,
                 "platform": "Epic Games",
                 "currency_symbol": symbol
             },
@@ -871,9 +860,6 @@ async def get_suggestions(region: str = "IN"):
                 "original_price": round(3199.0 * (rate / 83.0), 2),
                 "discount": 62.0,
                 "lowest_ever": round(1050.0 * (rate / 83.0), 2),
-                "sell_price": round(1680.0 * (rate / 83.0), 2),
-                "profit": round(480.0 * (rate / 83.0), 2),
-                "margin": 28.5,
                 "platform": "Steam",
                 "currency_symbol": symbol
             },
@@ -885,9 +871,6 @@ async def get_suggestions(region: str = "IN"):
                 "original_price": round(1499.0 * (rate / 83.0), 2),
                 "discount": 80.0,
                 "lowest_ever": round(299.0 * (rate / 83.0), 2),
-                "sell_price": round(599.0 * (rate / 83.0), 2),
-                "profit": round(299.0 * (rate / 83.0), 2),
-                "margin": 50.0,
                 "platform": "Steam",
                 "currency_symbol": symbol
             },
@@ -899,27 +882,24 @@ async def get_suggestions(region: str = "IN"):
                 "original_price": round(2999.0 * (rate / 83.0), 2),
                 "discount": 50.0,
                 "lowest_ever": round(1499.0 * (rate / 83.0), 2),
-                "sell_price": round(1999.0 * (rate / 83.0), 2),
-                "profit": round(500.0 * (rate / 83.0), 2),
-                "margin": 25.0,
                 "platform": "Epic Games",
                 "currency_symbol": symbol
             }
         ]
         for mg in mock_games:
             historical_lows.append(mg)
-            if mg["discount"] >= 75.0:
+            if mg["discount"] >= 70.0:
                 deep_discounts.append(mg)
-            if mg["margin"] >= 25.0:
-                best_resale.append(mg)
-            if mg["discount"] >= 50.0:
-                price_risk.append(mg)
+            if mg["discount"] >= 40.0:
+                on_sale_now.append(mg)
+            if mg["buy_price"] <= 300.0 * (rate / 83.0):
+                under_bargain.append(mg)
 
     return {
-        "historical_lows": historical_lows[:6],
-        "deep_discounts": deep_discounts[:6],
-        "best_resale": best_resale[:6],
-        "price_risk": price_risk[:6]
+        "on_sale_now": on_sale_now[:8],
+        "historical_lows": historical_lows[:8],
+        "deep_discounts": deep_discounts[:8],
+        "under_bargain": under_bargain[:8]
     }
 
 # --- SMART NOTIFICATIONS STREAM ---

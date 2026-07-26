@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Lightbulb, TrendingDown, DollarSign, Percent, AlertTriangle, Eye, Loader2, Sparkles, Trophy } from 'lucide-react';
+import { Tag, TrendingDown, Trophy, Sparkles, Eye, Loader2, Percent, Flame } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE } from '../config';
 
 const Suggestions = ({ onViewDetails, region }) => {
-  const [activeCategory, setActiveCategory] = useState('historical_lows');
+  const [activeCategory, setActiveCategory] = useState('on_sale_now');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,20 +30,20 @@ const Suggestions = ({ onViewDetails, region }) => {
 
   const getCategoryTitle = () => {
     const titles = {
-      historical_lows: "Historical Low Targets",
-      deep_discounts: "Deep Discounts (75%+ Off)",
-      best_resale: "High Reselling Margins",
-      price_risk: "Publisher Deal Resets Warning"
+      on_sale_now: "Games Currently On Sale Today",
+      historical_lows: "Record Lowest Prices Ever",
+      deep_discounts: "Massive Discounts (70%+ Off)",
+      under_bargain: "Super Cheap Bargains"
     };
     return titles[activeCategory] || "Recommendations";
   };
 
   const getCategoryDescription = () => {
     const desc = {
-      historical_lows: "Tracked games that are currently selling at their historical lowest recorded price. Ideal buying windows.",
-      deep_discounts: "Massive savings. Compare reseller catalogs to pick up high-demand keys before discounts expire.",
-      best_resale: "Calculated based on your custom Sell Prices vs Cheapest Buys. Top margin percentages.",
-      price_risk: "Games with 50%+ discounts. Buying keys now prevents purchasing at standard retail costs later."
+      on_sale_now: "Active deals with major price drops available across Steam, Epic, EA, Ubisoft & GOG.",
+      historical_lows: "Tracked games that are currently selling at their historical lowest recorded price ever.",
+      deep_discounts: "Huge savings! Exceptional price cuts on top titles.",
+      under_bargain: "Budget steals and super affordable games under local price thresholds."
     };
     return desc[activeCategory] || "";
   };
@@ -52,7 +52,7 @@ const Suggestions = ({ onViewDetails, region }) => {
     return (
       <div className="py-24 flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-gaming-accent animate-spin mb-4" />
-        <p className="text-sm text-gaming-muted">Running recommendation checks...</p>
+        <p className="text-sm text-gaming-muted">Finding best games on sale...</p>
       </div>
     );
   }
@@ -62,16 +62,28 @@ const Suggestions = ({ onViewDetails, region }) => {
       {/* Header */}
       <div>
         <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-          <Lightbulb className="w-8 h-8 text-gaming-accent" />
-          BI Suggestions Engine
+          <Flame className="w-8 h-8 text-gaming-accent" />
+          On-Sale & Deals Suggestions
         </h2>
         <p className="text-gaming-muted mt-1 text-sm">
-          Automated analysis maps the best buying opportunities and maximizes margin planning.
+          Discover top PC games on sale right now with automatic discount detection and lowest price tracking.
         </p>
       </div>
 
       {/* Suggestion Navigation Tabs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <button
+          onClick={() => setActiveCategory('on_sale_now')}
+          className={`p-4 rounded-2xl border flex flex-col items-center justify-between text-center transition-all ${
+            activeCategory === 'on_sale_now'
+              ? 'bg-gaming-accent/10 border-gaming-accent text-white shadow-glow'
+              : 'glass-panel border-white/5 text-gaming-muted hover:border-white/10 hover:text-white'
+          }`}
+        >
+          <Tag className="w-6 h-6 mb-2 text-gaming-accent" />
+          <span className="text-xs font-black uppercase tracking-wider">On Sale Now</span>
+        </button>
+
         <button
           onClick={() => setActiveCategory('historical_lows')}
           className={`p-4 rounded-2xl border flex flex-col items-center justify-between text-center transition-all ${
@@ -93,31 +105,19 @@ const Suggestions = ({ onViewDetails, region }) => {
           }`}
         >
           <TrendingDown className="w-6 h-6 mb-2 text-gaming-blue" />
-          <span className="text-xs font-black uppercase tracking-wider">Deep Discounts</span>
+          <span className="text-xs font-black uppercase tracking-wider">70%+ Off Deals</span>
         </button>
 
         <button
-          onClick={() => setActiveCategory('best_resale')}
+          onClick={() => setActiveCategory('under_bargain')}
           className={`p-4 rounded-2xl border flex flex-col items-center justify-between text-center transition-all ${
-            activeCategory === 'best_resale'
+            activeCategory === 'under_bargain'
               ? 'bg-gaming-accent/10 border-gaming-accent text-white shadow-glow'
               : 'glass-panel border-white/5 text-gaming-muted hover:border-white/10 hover:text-white'
           }`}
         >
-          <Percent className="w-6 h-6 mb-2 text-gaming-accent" />
-          <span className="text-xs font-black uppercase tracking-wider">Top ROI Margins</span>
-        </button>
-
-        <button
-          onClick={() => setActiveCategory('price_risk')}
-          className={`p-4 rounded-2xl border flex flex-col items-center justify-between text-center transition-all ${
-            activeCategory === 'price_risk'
-              ? 'bg-gaming-accent/10 border-gaming-accent text-white shadow-glow'
-              : 'glass-panel border-white/5 text-gaming-muted hover:border-white/10 hover:text-white'
-          }`}
-        >
-          <AlertTriangle className="w-6 h-6 mb-2 text-yellow-500" />
-          <span className="text-xs font-black uppercase tracking-wider">Price Resets</span>
+          <Percent className="w-6 h-6 mb-2 text-yellow-500" />
+          <span className="text-xs font-black uppercase tracking-wider">Cheap Bargains</span>
         </button>
       </div>
 
@@ -133,7 +133,7 @@ const Suggestions = ({ onViewDetails, region }) => {
 
         {getActiveList().length === 0 ? (
           <div className="py-20 text-center bg-white/[0.01] border border-dashed border-white/5 rounded-2xl text-xs text-gaming-muted">
-            No recommendation signals in this category yet. Start tracking more games!
+            No games currently matching this deal filter. Search and track games to expand suggestions!
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -163,29 +163,20 @@ const Suggestions = ({ onViewDetails, region }) => {
                     </div>
                   </div>
 
-                  {/* Financial Margins Analytics block */}
+                  {/* Pricing Comparison */}
                   <div className="bg-white/[0.01] border-y border-white/5 my-4 py-2.5 grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <span className="text-[9px] uppercase font-black text-gaming-muted tracking-wider block">Cheapest Cost</span>
-                      <span className="text-xs font-black text-gaming-green block mt-0.5">
+                      <span className="text-[9px] uppercase font-black text-gaming-muted tracking-wider block">Current Price</span>
+                      <span className="text-sm font-black text-gaming-green block mt-0.5">
                         {game.currency_symbol}{game.buy_price}
                       </span>
                     </div>
-                    {activeCategory === 'best_resale' ? (
-                      <div className="text-right">
-                        <span className="text-[9px] uppercase font-black text-gaming-muted tracking-wider block">Margin ROI</span>
-                        <span className="inline-block px-1.5 py-0.5 bg-gaming-green/15 text-gaming-green border border-gaming-green/20 text-[9px] font-black rounded mt-0.5">
-                          {game.margin}%
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="text-right">
-                        <span className="text-[9px] uppercase font-black text-gaming-muted tracking-wider block">Original Cost</span>
-                        <span className="text-xs font-bold text-gaming-muted line-through block mt-0.5">
-                          {game.currency_symbol}{game.original_price}
-                        </span>
-                      </div>
-                    )}
+                    <div className="text-right">
+                      <span className="text-[9px] uppercase font-black text-gaming-muted tracking-wider block">Original Price</span>
+                      <span className="text-xs font-bold text-gaming-muted line-through block mt-0.5">
+                        {game.currency_symbol}{game.original_price}
+                      </span>
+                    </div>
                   </div>
 
                   <button
@@ -193,7 +184,7 @@ const Suggestions = ({ onViewDetails, region }) => {
                     className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-gaming-accent/20 border border-white/5 hover:border-gaming-accent/35 rounded-xl text-white font-bold text-[10px] tracking-wider uppercase transition-all"
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    Inspect Details
+                    Inspect Deal & Price Graph
                   </button>
                 </div>
               );

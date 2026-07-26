@@ -5,9 +5,6 @@ import SearchGame from './components/SearchGame';
 import Wishlist from './components/Wishlist';
 import Alerts from './components/Alerts';
 import AdminPanel from './components/AdminPanel';
-import Inventory from './components/Inventory';
-import Sales from './components/Sales';
-import Analytics from './components/Analytics';
 import SalesCalendar from './components/SalesCalendar';
 import Suggestions from './components/Suggestions';
 import Toast from './components/Toast';
@@ -103,26 +100,6 @@ function App() {
           <Wishlist 
             onViewDetails={handleViewDetails} 
             triggerToast={triggerToast} 
-            region={region}
-          />
-        );
-      case 'inventory':
-        return (
-          <Inventory 
-            triggerToast={triggerToast} 
-            region={region}
-          />
-        );
-      case 'sales':
-        return (
-          <Sales 
-            triggerToast={triggerToast} 
-            region={region}
-          />
-        );
-      case 'analytics':
-        return (
-          <Analytics 
             region={region}
           />
         );

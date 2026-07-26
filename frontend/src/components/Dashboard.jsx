@@ -216,61 +216,7 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
               <h3 className="text-base font-extrabold text-white mt-3 truncate">{formatLastChecked(stats.last_update_time)}</h3>
             </div>
           </div>
-        </div>
-
-        <div>
-          <h4 className="text-[10px] uppercase font-black tracking-widest text-gaming-muted mb-3">Financial Ledger Summary</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {/* Revenue */}
-            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group border-l-2 border-gaming-blue">
-              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-                <TrendingUp className="w-32 h-32 text-white" />
-              </div>
-              <div className="p-3 bg-gaming-blue/10 border border-gaming-blue/20 w-fit rounded-xl text-gaming-blue mb-4">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Total Sales Revenue</p>
-              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.currency_symbol}{stats.total_revenue || 0}</h3>
-            </div>
-
-            {/* Profit */}
-            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group border-l-2 border-gaming-green">
-              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-                <Coins className="w-32 h-32 text-white" />
-              </div>
-              <div className="p-3 bg-gaming-green/10 border border-gaming-green/20 w-fit rounded-xl text-gaming-green mb-4">
-                <Coins className="w-5 h-5" />
-              </div>
-              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Net Resell Profit</p>
-              <h3 className="text-3xl font-extrabold text-gaming-green mt-1.5">{stats.currency_symbol}{stats.total_profit || 0}</h3>
-            </div>
-
-            {/* Stock Value */}
-            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group border-l-2 border-gaming-accent">
-              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-                <Database className="w-32 h-32 text-white" />
-              </div>
-              <div className="p-3 bg-gaming-accent/10 border border-gaming-accent/20 w-fit rounded-xl text-gaming-accent mb-4">
-                <Database className="w-5 h-5" />
-              </div>
-              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Inventory Asset Value</p>
-              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.currency_symbol}{stats.total_stock_value || 0}</h3>
-            </div>
-
-            {/* Sales Count */}
-            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group border-l-2 border-white/10">
-              <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-                <ShoppingBag className="w-32 h-32 text-white" />
-              </div>
-              <div className="p-3 bg-white/[0.04] border border-white/[0.08] w-fit rounded-xl text-gaming-muted mb-4">
-                <ShoppingBag className="w-5 h-5" />
-              </div>
-              <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Completed Sales Logs</p>
-              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.total_sales || 0}</h3>
-            </div>
-          </div>
-        </div>
-      </div>
+        </div>      </div>
 
       {/* Main Grid: Sale Countdown & Deals */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

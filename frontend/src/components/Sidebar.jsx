@@ -5,27 +5,21 @@ import {
   Heart, 
   Bell, 
   Shield, 
-  Database, 
-  DollarSign, 
-  BarChart3, 
   Calendar, 
-  Lightbulb,
   Sparkles,
+  Flame,
   X
 } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen }) => {
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
-    { id: 'ai_insights', name: 'Gemini AI Insights', icon: Sparkles },
-    { id: 'search', name: 'Search Games', icon: Search },
-    { id: 'wishlist', name: 'Wishlist / Margins', icon: Heart },
-    { id: 'inventory', name: 'Purchase Stock', icon: Database },
-    { id: 'sales', name: 'Sales Ledger', icon: DollarSign },
-    { id: 'analytics', name: 'Profit Analytics', icon: BarChart3 },
+    { id: 'suggestions', name: 'Games On Sale', icon: Flame },
+    { id: 'search', name: 'Search & Track', icon: Search },
+    { id: 'wishlist', name: 'Wishlist / Tracked', icon: Heart },
+    { id: 'alerts', name: 'Price Alerts', icon: Bell },
     { id: 'calendar', name: 'Sale Calendars', icon: Calendar },
-    { id: 'suggestions', name: 'BI Suggestions', icon: Lightbulb },
-    { id: 'alerts', name: 'Target Alerts', icon: Bell },
+    { id: 'ai_insights', name: 'AI Price Insights', icon: Sparkles },
     { id: 'admin', name: 'Admin Panel', icon: Shield },
   ];
 
@@ -50,7 +44,7 @@ const Sidebar = ({ activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen }) =
               <h1 className="text-lg font-extrabold tracking-wider bg-gradient-to-r from-white via-slate-100 to-gaming-accent bg-clip-text text-transparent">
                 RAKEXURA
               </h1>
-              <p className="text-[10px] uppercase tracking-widest text-gaming-muted font-semibold">Tracker</p>
+              <p className="text-[10px] uppercase tracking-widest text-gaming-muted font-semibold">Price Tracker</p>
             </div>
           </div>
           {/* Close button on mobile */}
@@ -91,7 +85,7 @@ const Sidebar = ({ activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen }) =
       {/* Footer Branding */}
       <div className="px-6 border-t border-white/5 pt-5 mt-6">
         <p className="text-[9px] uppercase tracking-widest text-gaming-muted/40 font-bold">
-          BI Platform v3.0
+          Price Tracker v3.0
         </p>
         <p className="text-[9px] text-gaming-muted/30 font-semibold mt-1">
           &copy; 2026 Rakexura Gaming
