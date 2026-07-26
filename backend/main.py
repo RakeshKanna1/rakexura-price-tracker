@@ -1221,7 +1221,8 @@ async def get_dashboard_stats(region: str = "IN"):
                 "current_price": round(buy_p, 2),
                 "original_price": round(orig_p, 2),
                 "discount_percent": disc,
-                "platform": g.get("platform", "Steam")
+                "platform": g.get("platform", "Steam"),
+                "is_wishlist": True
             })
             
         if disc > biggest_disc_pct:
@@ -1249,7 +1250,8 @@ async def get_dashboard_stats(region: str = "IN"):
                 "current_price": round(buy_p, 2),
                 "original_price": round(orig_p, 2),
                 "discount_percent": disc,
-                "platform": d["platform"]
+                "platform": d["platform"],
+                "is_wishlist": False
             })
             
         if disc > biggest_disc_pct:

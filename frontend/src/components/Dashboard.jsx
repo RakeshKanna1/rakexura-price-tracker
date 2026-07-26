@@ -286,14 +286,17 @@ const Dashboard = ({ setActiveTab, onViewDetails, triggerToast, region }) => {
         <div className="lg:col-span-2 glass-panel p-6 rounded-2xl border border-white/5 flex flex-col">
           <div className="flex justify-between items-center mb-5">
             <div>
-              <h3 className="text-lg font-bold text-white">Top Wishlist Discounts</h3>
-              <p className="text-xs text-gaming-muted mt-0.5">Games on your wishlist with the highest active markdowns.</p>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <TrendingDown className="w-5 h-5 text-gaming-green" />
+                Top Active Discounts & Deals
+              </h3>
+              <p className="text-xs text-gaming-muted mt-0.5">Top active markdowns across your tracked wishlist and major PC stores.</p>
             </div>
             <button 
-              onClick={() => setActiveTab('wishlist')}
+              onClick={() => setActiveTab('suggestions')}
               className="text-gaming-accent hover:text-gaming-accent/80 font-bold text-xs uppercase tracking-wider flex items-center gap-1 transition-colors"
             >
-              View Wishlist
+              Explore Deals
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -324,9 +327,15 @@ const Dashboard = ({ setActiveTab, onViewDetails, triggerToast, region }) => {
                         {game.name}
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[9px] bg-gaming-blue/15 text-gaming-blue font-bold px-1.5 py-0.5 rounded">
-                          {game.platform}
-                        </span>
+                        {game.is_wishlist ? (
+                          <span className="text-[9px] bg-gaming-accent/20 text-gaming-accent border border-gaming-accent/30 font-black px-1.5 py-0.5 rounded">
+                            ⭐ Wishlisted
+                          </span>
+                        ) : (
+                          <span className="text-[9px] bg-gaming-blue/15 text-gaming-blue font-bold px-1.5 py-0.5 rounded">
+                            {game.platform}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
