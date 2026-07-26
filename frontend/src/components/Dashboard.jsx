@@ -169,7 +169,10 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
           <h4 className="text-[10px] uppercase font-black tracking-widest text-gaming-muted mb-3">Wishlist & Alerts Summary</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* Metric 1: Tracked */}
-            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
+            <div 
+              onClick={() => setActiveTab('wishlist')}
+              className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group cursor-pointer"
+            >
               <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
                 <LayoutDashboard className="w-32 h-32 text-white" />
               </div>
@@ -177,11 +180,14 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
                 <LayoutDashboard className="w-5 h-5" />
               </div>
               <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Tracked Games</p>
-              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.total_tracked}</h3>
+              <h3 className="text-3xl font-extrabold text-white mt-1.5 group-hover:text-gaming-accent transition-colors">{stats.total_tracked}</h3>
             </div>
 
-            {/* Metric 2: Price Drops */}
-            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
+            {/* Metric 2: Price Drops / Deals Found */}
+            <div 
+              onClick={() => setActiveTab('suggestions')}
+              className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group cursor-pointer"
+            >
               <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
                 <TrendingDown className="w-32 h-32 text-white" />
               </div>
@@ -189,11 +195,17 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
                 <TrendingDown className="w-5 h-5" />
               </div>
               <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Deals Found Today</p>
-              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.lowest_prices_today}</h3>
+              <div className="flex items-baseline justify-between mt-1.5">
+                <h3 className="text-3xl font-extrabold text-white group-hover:text-gaming-green transition-colors">{stats.lowest_prices_today}</h3>
+                <span className="text-[10px] text-gaming-green font-bold uppercase tracking-wider group-hover:underline">View Deals &rarr;</span>
+              </div>
             </div>
 
             {/* Metric 3: Active Alerts */}
-            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
+            <div 
+              onClick={() => setActiveTab('alerts')}
+              className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group cursor-pointer"
+            >
               <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
                 <Bell className="w-32 h-32 text-white" />
               </div>
@@ -201,11 +213,15 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
                 <Bell className="w-5 h-5" />
               </div>
               <p className="text-xs uppercase tracking-wider font-semibold text-gaming-muted">Active Price Alerts</p>
-              <h3 className="text-3xl font-extrabold text-white mt-1.5">{stats.active_alerts}</h3>
+              <h3 className="text-3xl font-extrabold text-white mt-1.5 group-hover:text-gaming-blue transition-colors">{stats.active_alerts}</h3>
             </div>
 
             {/* Metric 4: Last Checked */}
-            <div className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group">
+            <div 
+              onClick={handleRefresh}
+              className="glass-panel glass-panel-hover p-6 rounded-2xl relative overflow-hidden group cursor-pointer"
+              title="Click to check for price updates"
+            >
               <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
                 <Clock className="w-32 h-32 text-white" />
               </div>
