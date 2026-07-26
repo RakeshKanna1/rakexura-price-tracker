@@ -93,6 +93,40 @@ function App() {
     setActiveTab('search');
   };
 
+  const handleNotificationClick = async (n) => {
+    try {
+      if (n.id && !n.id.startsWith("sale_")) {
+        await axios.put(`${API_BASE}/notifications/read/${n.id}`);
+        setNotifications(prev => prev.filter(item => item.id !== n.id));
+      }
+    } catch (e) {
+      console.error("Error marking notification read:", e);
+    }
+
+    setShowNotifDropdown(false);
+
+    if (n.cheapshark_id) {
+      handleViewDetails(n.cheapshark_id);
+    } else if (n.game_name || n.title) {
+      const rawTitle = n.game_name || n.title;
+      const queryName = rawTitle.replace(/^🔥\s*Daily Suggestion:\s*/i, '').replace(/^Price Drop:\s*/i, '').trim();
+      try {
+        const res = await axios.get(`${API_BASE}/search`, { params: { title: queryName } });
+        if (res.data && res.data.length > 0 && res.data[0].cheapshark_id) {
+          handleViewDetails(res.data[0].cheapshark_id);
+          return;
+        }
+      } catch (err) {
+        console.error("Error searching title for notification click:", err);
+      }
+      setActiveTab('search');
+    } else if (n.type === 'SALE_UPCOMING') {
+      setActiveTab('calendar');
+    } else {
+      setActiveTab('suggestions');
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -257,22 +291,7 @@ function App() {
                         return (
                           <div 
                             key={n.id || i} 
-                            onClick={async () => {
-                              try {
-                                if (n.id) {
-                                  await axios.put(`${API_BASE}/notifications/read/${n.id}`);
-                                  setNotifications(prev => prev.filter(item => item.id !== n.id));
-                                }
-                              } catch (e) { console.error(e); }
-
-                              if (n.cheapshark_id) {
-                                handleViewDetails(n.cheapshark_id);
-                                setShowNotifDropdown(false);
-                              } else if (n.type === 'SALE_UPCOMING') {
-                                setActiveTab('calendar');
-                                setShowNotifDropdown(false);
-                              }
-                            }}
+                            onClick={() => handleNotificationClick(n)}
                             className="p-3 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 rounded-xl flex gap-3 items-start cursor-pointer transition-all group"
                           >
                             <div className="pt-0.5 flex-shrink-0">
