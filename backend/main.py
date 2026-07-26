@@ -1174,21 +1174,28 @@ async def get_dashboard_stats(region: str = "IN"):
     rate = r_info["rate"]
     symbol = r_info["symbol"]
     
-    deals_today = 0
+    # Fetch live storewide deals from CheapShark
+    live_deals = await get_deals_from_api(sort_by="Deal Rating", page_size=60)
+    
+    wishlist_deals_count = 0
     top_discounts = []
+    seen_ids = set()
     
     biggest_disc_pct = 0.0
     biggest_disc_game = None
     
+    # 1. Include wishlisted games on discount
     for g in games:
         disc = g.get("discount_percent", 0.0)
         buy_p = g.get("current_price", 0.0) * rate
         orig_p = g.get("original_price", g.get("current_price", 0.0)) * rate
+        cid = g.get("cheapshark_id")
         
         if disc > 0:
-            deals_today += 1
+            wishlist_deals_count += 1
+            if cid: seen_ids.add(cid)
             top_discounts.append({
-                "cheapshark_id": g.get("cheapshark_id"),
+                "cheapshark_id": cid,
                 "name": g.get("name"),
                 "thumbnail": g.get("thumbnail"),
                 "current_price": round(buy_p, 2),
@@ -1204,8 +1211,36 @@ async def get_dashboard_stats(region: str = "IN"):
                 "discount_percent": disc,
                 "thumbnail": g.get("thumbnail")
             }
+
+    # 2. Merge live store deals
+    for d in live_deals:
+        cid = d["cheapshark_id"]
+        buy_p = d["sale_price_usd"] * rate
+        orig_p = d["normal_price_usd"] * rate
+        disc = d["discount_percent"]
+        
+        if cid not in seen_ids:
+            seen_ids.add(cid)
+            top_discounts.append({
+                "cheapshark_id": cid,
+                "name": d["name"],
+                "thumbnail": d["thumbnail"],
+                "current_price": round(buy_p, 2),
+                "original_price": round(orig_p, 2),
+                "discount_percent": disc,
+                "platform": d["platform"]
+            })
             
+        if disc > biggest_disc_pct:
+            biggest_disc_pct = disc
+            biggest_disc_game = {
+                "name": d["name"],
+                "discount_percent": disc,
+                "thumbnail": d["thumbnail"]
+            }
+
     top_discounts.sort(key=lambda x: x["discount_percent"], reverse=True)
+    deals_today = max(len(top_discounts), wishlist_deals_count)
     top_discounts = top_discounts[:5]
     
     last_log = await logs_col.find_one({"event_type": {"$in": ["PRICE_UPDATED", "SYSTEM_START"]}}, sort=[("timestamp", -1)])
