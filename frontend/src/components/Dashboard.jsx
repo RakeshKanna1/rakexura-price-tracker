@@ -309,11 +309,7 @@ const Dashboard = ({ setActiveTab, onViewDetails, triggerToast, region }) => {
               stats.top_discounts.map((game, idx) => (
                 <div 
                   key={game.cheapshark_id || idx}
-                  onClick={() => {
-                    if (onViewDetails && game.cheapshark_id) {
-                      onViewDetails(game.cheapshark_id);
-                    }
-                  }}
+                  onClick={() => handleGameClick(game.cheapshark_id, game.name)}
                   className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-white/10 cursor-pointer transition-all duration-200 group"
                 >
                   <div className="flex items-center gap-4">
@@ -375,11 +371,7 @@ const Dashboard = ({ setActiveTab, onViewDetails, triggerToast, region }) => {
 
           {stats.biggest_discount_today && stats.biggest_discount_today.name !== 'None' ? (
             <div 
-              onClick={() => {
-                if (onViewDetails && stats.biggest_discount_today?.cheapshark_id) {
-                  onViewDetails(stats.biggest_discount_today.cheapshark_id);
-                }
-              }}
+              onClick={() => handleGameClick(stats.biggest_discount_today?.cheapshark_id, stats.biggest_discount_today?.name)}
               className="my-6 flex items-center gap-4 bg-white/[0.02] border border-white/5 p-3.5 rounded-xl hover:bg-white/[0.05] hover:border-white/10 cursor-pointer transition-all group"
             >
               <img 
@@ -432,13 +424,7 @@ const Dashboard = ({ setActiveTab, onViewDetails, triggerToast, region }) => {
                   <div 
                     key={game.cheapshark_id || idx}
                     className="flex items-center gap-3.5 p-2 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] transition-colors cursor-pointer group"
-                    onClick={() => {
-                      if (onViewDetails && game.cheapshark_id) {
-                        onViewDetails(game.cheapshark_id);
-                      } else {
-                        setActiveTab('search');
-                      }
-                    }}
+                    onClick={() => handleGameClick(game.cheapshark_id, game.name)}
                   >
                     <img 
                       src={game.thumbnail} 
