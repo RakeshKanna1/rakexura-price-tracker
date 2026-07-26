@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Heart, Bell, ExternalLink, Download, TrendingDown, ArrowLeft, Gamepad2, Clock, RefreshCw, Loader2, Sparkles } from 'lucide-react';
+import { Search, Heart, Bell, ExternalLink, Download, TrendingDown, ArrowLeft, Gamepad2, Clock, RefreshCw, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import axios from 'axios';
 import { API_BASE } from '../config';
@@ -44,6 +44,26 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
     }
   };
 
+  const handleClearSearchHistory = async () => {
+    try {
+      await axios.delete(`${API_BASE}/search-history`);
+      setRecentSearches([]);
+      if (triggerToast) triggerToast("Recent searches cleared!", "info");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const saveSearchTerm = async (term) => {
+    if (!term || term.trim().length < 3) return;
+    try {
+      await axios.post(`${API_BASE}/search-history`, null, { params: { query: term.trim() } });
+      fetchRecentSearches();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetchRecentSearches();
     return () => {
@@ -64,6 +84,9 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
     try {
       const detailsRes = await axios.get(`${API_BASE}/prices/${cheapsharkId}`, { params: { region } });
       setGameDetails(detailsRes.data);
+      if (detailsRes.data?.name) {
+        saveSearchTerm(detailsRes.data.name);
+      }
       
       const historyRes = await axios.get(`${API_BASE}/history/${cheapsharkId}`, { params: { days: 30, region } });
       setHistoryData(historyRes.data);
@@ -140,10 +163,6 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
     try {
       const res = await axios.get(`${API_BASE}/search`, { params: { title: searchTerm } });
       setSearchResults(res.data);
-      
-      // Save search term to recent history
-      await axios.post(`${API_BASE}/search-history`, null, { params: { query: searchTerm } });
-      fetchRecentSearches();
     } catch (err) {
       console.error(err);
     } finally {
@@ -337,11 +356,23 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
           {/* Recent Searches History */}
           {recentSearches.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className="text-[10px] uppercase font-black text-gaming-muted tracking-wider mr-2">Recent searches:</span>
+              <div className="flex items-center gap-1.5 mr-2">
+                <span className="text-[10px] uppercase font-black text-gaming-muted tracking-wider">Recent searches:</span>
+                <button
+                  onClick={handleClearSearchHistory}
+                  title="Clear search history"
+                  className="p-1 text-gaming-muted hover:text-red-400 transition-colors rounded-md hover:bg-white/5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
               {recentSearches.map((term, i) => (
                 <button
                   key={i}
-                  onClick={() => handleSearch(term, true)}
+                  onClick={() => {
+                    saveSearchTerm(term);
+                    handleSearch(term, true);
+                  }}
                   className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] text-white font-bold rounded-lg transition-colors"
                 >
                   {term}

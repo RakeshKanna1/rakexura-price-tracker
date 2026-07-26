@@ -1373,9 +1373,19 @@ async def get_trending_games():
 @app.post("/api/search-history")
 async def save_search(query: str = Query(...)):
     history_col = get_collection("search_history")
-    await history_col.delete_many({"query": query})
+    cleaned = query.strip()
+    if len(cleaned) < 3:
+        return {"status": "skipped"}
+        
+    # Purge partial prefix fragments (e.g. if saving "Dead Space", delete "dead", "dead s", "dead sp")
+    prefixes = [re.escape(cleaned[:i]) for i in range(2, len(cleaned))]
+    if prefixes:
+        pattern = f"^({'|'.join(prefixes)})$"
+        await history_col.delete_many({"query": {"$regex": pattern, "$options": "i"}})
+        
+    await history_col.delete_many({"query": {"$regex": f"^{re.escape(cleaned)}$", "$options": "i"}})
     await history_col.insert_one({
-        "query": query,
+        "query": cleaned,
         "timestamp": datetime.utcnow()
     })
     return {"status": "saved"}
@@ -1383,9 +1393,25 @@ async def save_search(query: str = Query(...)):
 @app.get("/api/search-history")
 async def get_search_history():
     history_col = get_collection("search_history")
-    cursor = history_col.find(sort=[("timestamp", -1)], limit=10)
-    history = await cursor.to_list(length=10)
-    return [item["query"] for item in history]
+    cursor = history_col.find(sort=[("timestamp", -1)], limit=15)
+    history = await cursor.to_list(length=15)
+    
+    seen = set()
+    cleaned_list = []
+    for item in history:
+        q = item.get("query", "").strip()
+        q_lower = q.lower()
+        if q and q_lower not in seen and len(q) >= 3:
+            seen.add(q_lower)
+            cleaned_list.append(q)
+            
+    return cleaned_list[:10]
+
+@app.delete("/api/search-history")
+async def clear_search_history():
+    history_col = get_collection("search_history")
+    await history_col.delete_many({})
+    return {"message": "Search history cleared"}
 
 @app.get("/api/export/{game_id}")
 async def export_price_history_csv(game_id: str, region: str = "IN"):
