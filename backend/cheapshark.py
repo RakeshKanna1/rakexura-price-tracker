@@ -197,10 +197,11 @@ async def get_game_details_from_api(game_id: str, region: str = "IN", bypass_cac
             store_info = STORE_MAPPING[store_id]
             price_usd = float(deal["price"])
             retail_usd = float(deal["retailPrice"])
-            savings = float(deal["savings"])
-            
-            # Direct Store Link
-            direct_link = get_direct_store_link(store_info["name"], info.get("title"), steam_app_id)
+            deal_id = deal.get("dealID")
+            if deal_id:
+                direct_link = f"https://www.cheapshark.com/redirect?dealID={deal_id}"
+            else:
+                direct_link = get_direct_store_link(store_info["name"], info.get("title"), steam_app_id)
             
             # Apply currency conversion rates
             current_price = price_usd * rate
@@ -276,3 +277,82 @@ def invalidate_game_cache(cheapshark_id: str, steam_app_id: str = None):
         keys_to_remove_steam = [k for k in STEAM_PRICE_CACHE if k.startswith(f"{steam_app_id}_")]
         for k in keys_to_remove_steam:
             STEAM_PRICE_CACHE.pop(k, None)
+
+
+# In-memory deals cache
+DEALS_CACHE = {}
+DEALS_CACHE_TTL = 600  # 10 minutes
+
+async def get_deals_from_api(
+    store_id: str = None, 
+    upper_price: float = None, 
+    lower_price: float = None,
+    min_discount: int = None,
+    sort_by: str = "Deal Rating", 
+    page_size: int = 30
+) -> List[Dict[str, Any]]:
+    """
+    Fetch active game deals on sale from CheapShark Deals API
+    """
+    now = time.time()
+    cache_key = f"{store_id}_{upper_price}_{lower_price}_{min_discount}_{sort_by}_{page_size}"
+    
+    if cache_key in DEALS_CACHE:
+        expiry, data = DEALS_CACHE[cache_key]
+        if now < expiry:
+            return copy.deepcopy(data)
+            
+    params = {
+        "onSale": "1",
+        "pageSize": str(page_size),
+        "sortBy": sort_by,
+        "desc": "1"
+    }
+    if store_id:
+        params["storeID"] = str(store_id)
+    if upper_price is not None:
+        params["upperPrice"] = str(upper_price)
+    if lower_price is not None:
+        params["lowerPrice"] = str(lower_price)
+        
+    try:
+        response = await HTTP_CLIENT.get(
+            f"{CHEAPSHARK_API_URL}/deals",
+            params=params
+        )
+        response.raise_for_status()
+        deals_raw = response.json()
+        
+        formatted_deals = []
+        for deal in deals_raw:
+            savings = float(deal.get("savings", 0.0))
+            if min_discount is not None and savings < min_discount:
+                continue
+            
+            store_id_val = str(deal.get("storeID"))
+            store_info = STORE_MAPPING.get(store_id_val, {"name": "PC Store"})
+            
+            sale_price = float(deal.get("salePrice", 0.0))
+            normal_price = float(deal.get("normalPrice", sale_price))
+            if normal_price < sale_price:
+                normal_price = sale_price * 1.4
+                
+            formatted_deals.append({
+                "cheapshark_id": str(deal.get("gameID")),
+                "deal_id": deal.get("dealID"),
+                "name": deal.get("title"),
+                "thumbnail": deal.get("thumb"),
+                "sale_price_usd": sale_price,
+                "normal_price_usd": normal_price,
+                "discount_percent": round(savings, 1),
+                "platform": store_info.get("name", "Steam"),
+                "metacritic_score": deal.get("metacriticScore"),
+                "deal_rating": deal.get("dealRating")
+            })
+            
+        DEALS_CACHE[cache_key] = (now + DEALS_CACHE_TTL, formatted_deals)
+        return formatted_deals
+    except Exception as e:
+        logger.error(f"Error fetching deals from CheapShark: {e}")
+        return []
+

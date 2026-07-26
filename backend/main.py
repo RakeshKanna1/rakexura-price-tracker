@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from bson import ObjectId
 
 from database import init_db, get_collection, parse_datetime
-from cheapshark import search_games_from_api, get_game_details_from_api, invalidate_game_cache
+from cheapshark import search_games_from_api, get_game_details_from_api, invalidate_game_cache, get_deals_from_api
 from scheduler import start_scheduler, shutdown_scheduler, update_all_prices, update_single_game_prices
 from models import WishlistCreate, AlertCreate, InventoryCreate, SaleCreate
 from config import REGIONS, STORE_MAPPING
@@ -794,7 +794,7 @@ async def get_calendar():
 
 @app.get("/api/suggestions")
 async def get_suggestions(region: str = "IN"):
-    """Recommend low price games based on recent search history and active deals"""
+    """Recommend low price games based on recent search history and active live deals"""
     games_col = get_collection("games")
     history_col = get_collection("search_history")
     
@@ -807,27 +807,37 @@ async def get_suggestions(region: str = "IN"):
     recent_items = await recent_searches_cursor.to_list(length=5)
     search_terms = [item.get("query", "").strip() for item in recent_items if item.get("query")]
     
+    # Fallback to popular AAA terms if search history is empty
+    default_queries = ["GTA V", "Red Dead Redemption 2", "Cyberpunk 2077", "Elden Ring", "Dead Space"]
+    if not search_terms:
+        search_terms = default_queries
+    elif len(search_terms) < 3:
+        for dq in default_queries:
+            if dq not in search_terms and len(search_terms) < 5:
+                search_terms.append(dq)
+                
     # 2. Fetch recommendations dynamically based on recent search terms
     based_on_searches = []
     seen_ids = set()
     
     for term in search_terms:
-        if len(based_on_searches) >= 8:
+        if len(based_on_searches) >= 12:
             break
         try:
             results = await search_games_from_api(term)
-            for res in results[:3]:
+            for res in results[:2]:
                 cid = res.get("cheapshark_id")
                 if cid and cid not in seen_ids:
                     seen_ids.add(cid)
                     cheap_p_usd = res.get("cheapest_price") or 0.0
                     buy_p = cheap_p_usd * rate
+                    orig_p = buy_p * 1.5 if buy_p > 0 else 0.0
                     based_on_searches.append({
                         "cheapshark_id": cid,
                         "name": res.get("name"),
                         "thumbnail": res.get("thumbnail"),
                         "buy_price": round(buy_p, 2),
-                        "original_price": round(buy_p * 1.5, 2),
+                        "original_price": round(orig_p, 2),
                         "discount": 33.0,
                         "lowest_ever": round(buy_p, 2),
                         "platform": "Steam / PC",
@@ -837,7 +847,26 @@ async def get_suggestions(region: str = "IN"):
         except Exception:
             pass
 
-    # 3. Also fetch tracked games & low price deals
+    # 3. Fetch Live CheapShark Deals for storewide categories
+    live_deals_rating = await get_deals_from_api(sort_by="Deal Rating", page_size=60)
+    live_bargain_deals = await get_deals_from_api(upper_price=5.0, sort_by="Price", page_size=30)
+    
+    def format_deal_item(deal: dict) -> dict:
+        buy_p = deal["sale_price_usd"] * rate
+        orig_p = deal["normal_price_usd"] * rate
+        return {
+            "cheapshark_id": deal["cheapshark_id"],
+            "name": deal["name"],
+            "thumbnail": deal["thumbnail"],
+            "buy_price": round(buy_p, 2),
+            "original_price": round(orig_p, 2),
+            "discount": deal["discount_percent"],
+            "lowest_ever": round(buy_p, 2),
+            "platform": deal["platform"],
+            "currency_symbol": symbol
+        }
+
+    # 4. Fetch user's tracked/wishlisted games
     cursor = games_col.find({}, {
         "cheapshark_id": 1, "name": 1, "thumbnail": 1, "current_price": 1,
         "lowest_ever_price": 1, "original_price": 1, "discount_percent": 1,
@@ -850,14 +879,21 @@ async def get_suggestions(region: str = "IN"):
     on_sale_now = []
     under_bargain = []
     
+    seen_on_sale = set()
+    seen_lows = set()
+    seen_deep = set()
+    seen_bargain = set()
+    
+    # Priority 1: Add user's tracked games that meet criteria
     for g in games:
+        cid = g.get("cheapshark_id")
         buy_p = g.get("current_price", 0.0) * rate
         low_p = g.get("lowest_ever_price", 0.0) * rate
         orig_p = g.get("original_price", 0.0) * rate
         disc = g.get("discount_percent", 0.0)
         
         game_info = {
-            "cheapshark_id": g.get("cheapshark_id"),
+            "cheapshark_id": cid,
             "name": g.get("name"),
             "thumbnail": g.get("thumbnail"),
             "buy_price": round(buy_p, 2),
@@ -870,51 +906,48 @@ async def get_suggestions(region: str = "IN"):
         
         if buy_p <= low_p * 1.03:
             historical_lows.append(game_info)
-        if disc >= 70.0:
+            if cid: seen_lows.add(cid)
+        if disc >= 50.0:
             deep_discounts.append(game_info)
-        if disc >= 40.0:
+            if cid: seen_deep.add(cid)
+        if disc >= 15.0:
             on_sale_now.append(game_info)
-        if buy_p <= 299.0 * (rate / 83.0):
+            if cid: seen_on_sale.add(cid)
+        if buy_p <= 399.0 * (rate / 83.0):
             under_bargain.append(game_info)
-            
-    if not games and not based_on_searches:
-        mock_games = [
-            {
-                "cheapshark_id": "mock_gta",
-                "name": "Grand Theft Auto V",
-                "thumbnail": "https://shared.fastly.steamstatic.com/store_images_shared/app/271590/header.jpg",
-                "buy_price": round(749.0 * (rate / 83.0), 2),
-                "original_price": round(1999.0 * (rate / 83.0), 2),
-                "discount": 63.0,
-                "lowest_ever": round(749.0 * (rate / 83.0), 2),
-                "platform": "Epic Games",
-                "searched_for": "GTA V",
-                "currency_symbol": symbol
-            },
-            {
-                "cheapshark_id": "mock_deadspace",
-                "name": "Dead Space (2023)",
-                "thumbnail": "https://shared.fastly.steamstatic.com/store_images_shared/app/1698200/header.jpg",
-                "buy_price": round(899.0 * (rate / 83.0), 2),
-                "original_price": round(2999.0 * (rate / 83.0), 2),
-                "discount": 70.0,
-                "lowest_ever": round(899.0 * (rate / 83.0), 2),
-                "platform": "Steam",
-                "searched_for": "Dead Space",
-                "currency_symbol": symbol
-            }
-        ]
-        for mg in mock_games:
-            based_on_searches.append(mg)
-            historical_lows.append(mg)
-            on_sale_now.append(mg)
+            if cid: seen_bargain.add(cid)
+
+    # Priority 2: Merge live CheapShark deals so tabs are NEVER empty
+    sorted_by_discount = sorted(live_deals_rating, key=lambda x: x["discount_percent"], reverse=True)
+
+    for d in live_deals_rating:
+        cid = d["cheapshark_id"]
+        item = format_deal_item(d)
+        if cid not in seen_on_sale:
+            seen_on_sale.add(cid)
+            on_sale_now.append(item)
+        if cid not in seen_lows and d["discount_percent"] >= 30.0:
+            seen_lows.add(cid)
+            historical_lows.append(item)
+
+    for d in sorted_by_discount:
+        cid = d["cheapshark_id"]
+        if cid not in seen_deep:
+            seen_deep.add(cid)
+            deep_discounts.append(format_deal_item(d))
+
+    for d in live_bargain_deals:
+        cid = d["cheapshark_id"]
+        if cid not in seen_bargain:
+            seen_bargain.add(cid)
+            under_bargain.append(format_deal_item(d))
 
     return {
-        "based_on_searches": based_on_searches[:8],
-        "on_sale_now": on_sale_now[:8],
-        "historical_lows": historical_lows[:8],
-        "deep_discounts": deep_discounts[:8],
-        "under_bargain": under_bargain[:8]
+        "based_on_searches": based_on_searches[:10],
+        "on_sale_now": on_sale_now[:10],
+        "historical_lows": historical_lows[:10],
+        "deep_discounts": deep_discounts[:10],
+        "under_bargain": under_bargain[:10]
     }
 
 # --- SMART NOTIFICATIONS STREAM ---

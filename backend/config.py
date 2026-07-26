@@ -23,6 +23,7 @@ STORE_MAPPING = {
     "2": {"name": "GamersGate", "icon": "GamersGate", "url": "https://www.gamersgate.com", "type": "Authorized Reseller"},
     "3": {"name": "Green Man Gaming", "icon": "GMG", "url": "https://www.greenmangaming.com", "type": "Authorized Reseller"},
     "7": {"name": "GOG.com", "icon": "GOG", "url": "https://www.gog.com", "type": "Official Store"},
+    "8": {"name": "EA App / Origin", "icon": "EA", "url": "https://www.ea.com", "type": "Official Store"},
     "11": {"name": "Humble Store", "icon": "Humble", "url": "https://www.humblebundle.com/store", "type": "Authorized Reseller"},
     "13": {"name": "Ubisoft Store", "icon": "Ubisoft", "url": "https://store.ubisoft.com", "type": "Official Store"},
     "15": {"name": "Fanatical", "icon": "Fanatical", "url": "https://www.fanatical.com", "type": "Authorized Reseller"},
@@ -30,7 +31,10 @@ STORE_MAPPING = {
     "23": {"name": "GameBillet", "icon": "GameBillet", "url": "https://www.gamebillet.com", "type": "Authorized Reseller"},
     "25": {"name": "Epic Games Store", "icon": "Epic", "url": "https://store.epicgames.com", "type": "Official Store"},
     "27": {"name": "Gamesplanet", "icon": "Gamesplanet", "url": "https://www.gamesplanet.com", "type": "Authorized Reseller"},
+    "28": {"name": "Xbox PC Store", "icon": "Xbox", "url": "https://www.xbox.com", "type": "Official Store"},
+    "29": {"name": "2Game", "icon": "2Game", "url": "https://2game.com", "type": "Authorized Reseller"},
     "30": {"name": "IndieGala", "icon": "IndieGala", "url": "https://www.indiegala.com", "type": "Authorized Reseller"},
+    "31": {"name": "Blizzard Shop", "icon": "Blizzard", "url": "https://shop.battle.net", "type": "Official Store"},
     "35": {"name": "DreamGame", "icon": "DreamGame", "url": "https://www.dreamgame.com", "type": "Authorized Reseller"}
 }
 
