@@ -141,7 +141,10 @@ const Wishlist = ({ onViewDetails, triggerToast, region }) => {
                 className="glass-panel hover:border-gaming-accent/20 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all duration-300"
               >
                 {/* Header Info */}
-                <div className="p-5 flex gap-4">
+                <div 
+                  onClick={() => onViewDetails && game.cheapshark_id && onViewDetails(game.cheapshark_id)}
+                  className="p-5 flex gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                >
                   <img
                     src={game.thumbnail}
                     alt={game.name}

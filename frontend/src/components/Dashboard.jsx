@@ -3,7 +3,7 @@ import { LayoutDashboard, TrendingDown, Bell, Clock, RefreshCw, ArrowRight, Flam
 import axios from 'axios';
 import { API_BASE, cacheGet, cacheSet } from '../config';
 
-const Dashboard = ({ setActiveTab, triggerToast, region }) => {
+const Dashboard = ({ setActiveTab, onViewDetails, triggerToast, region }) => {
   const [stats, setStats] = useState({
     total_tracked: 0,
     lowest_prices_today: 0,
@@ -309,7 +309,12 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
               stats.top_discounts.map((game, idx) => (
                 <div 
                   key={game.cheapshark_id || idx}
-                  className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.04] transition-all duration-200 group"
+                  onClick={() => {
+                    if (onViewDetails && game.cheapshark_id) {
+                      onViewDetails(game.cheapshark_id);
+                    }
+                  }}
+                  className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-white/10 cursor-pointer transition-all duration-200 group"
                 >
                   <div className="flex items-center gap-4">
                     <img 
@@ -369,7 +374,14 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
           </div>
 
           {stats.biggest_discount_today && stats.biggest_discount_today.name !== 'None' ? (
-            <div className="my-6 flex items-center gap-4 bg-white/[0.02] border border-white/5 p-3.5 rounded-xl">
+            <div 
+              onClick={() => {
+                if (onViewDetails && stats.biggest_discount_today?.cheapshark_id) {
+                  onViewDetails(stats.biggest_discount_today.cheapshark_id);
+                }
+              }}
+              className="my-6 flex items-center gap-4 bg-white/[0.02] border border-white/5 p-3.5 rounded-xl hover:bg-white/[0.05] hover:border-white/10 cursor-pointer transition-all group"
+            >
               <img 
                 src={stats.biggest_discount_today.thumbnail} 
                 alt={stats.biggest_discount_today.name} 
@@ -377,7 +389,7 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
                 onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=200'; }}
               />
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-black text-white truncate">{stats.biggest_discount_today.name}</h4>
+                <h4 className="text-sm font-black text-white group-hover:text-gaming-accent transition-colors truncate">{stats.biggest_discount_today.name}</h4>
                 <div className="flex items-center gap-2.5 mt-2">
                   <span className="text-xs bg-gaming-green/20 border border-gaming-green/35 text-gaming-green px-2 py-0.5 rounded-lg font-extrabold">
                     -{Math.round(stats.biggest_discount_today.discount_percent)}% OFF
@@ -419,9 +431,13 @@ const Dashboard = ({ setActiveTab, triggerToast, region }) => {
                 {trending.map((game, idx) => (
                   <div 
                     key={game.cheapshark_id || idx}
-                    className="flex items-center gap-3.5 p-2 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] transition-colors cursor-pointer"
+                    className="flex items-center gap-3.5 p-2 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] transition-colors cursor-pointer group"
                     onClick={() => {
-                      setActiveTab('search');
+                      if (onViewDetails && game.cheapshark_id) {
+                        onViewDetails(game.cheapshark_id);
+                      } else {
+                        setActiveTab('search');
+                      }
                     }}
                   >
                     <img 

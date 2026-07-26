@@ -76,6 +76,7 @@ function App() {
         return (
           <Dashboard 
             setActiveTab={setActiveTab} 
+            onViewDetails={handleViewDetails}
             triggerToast={triggerToast} 
             region={region}
           />
