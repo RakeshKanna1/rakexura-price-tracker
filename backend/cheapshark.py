@@ -197,6 +197,7 @@ async def get_game_details_from_api(game_id: str, region: str = "IN", bypass_cac
             store_info = STORE_MAPPING[store_id]
             price_usd = float(deal["price"])
             retail_usd = float(deal["retailPrice"])
+            savings = float(deal.get("savings", 0.0))
             deal_id = deal.get("dealID")
             if deal_id:
                 direct_link = f"https://www.cheapshark.com/redirect?dealID={deal_id}"
@@ -227,8 +228,8 @@ async def get_game_details_from_api(game_id: str, region: str = "IN", bypass_cac
             })
             found_store_ids.add(store_id)
     
-    # Sort platform prices so lowest is first
-    platform_prices.sort(key=lambda x: x["current_price"])
+    # Sort platform prices: Official Stores first (lowest price), then Resellers (lowest price)
+    platform_prices.sort(key=lambda x: (0 if x["type"] == "Official Store" else 1, x["current_price"]))
     
     # Find the lowest price
     lowest_price = platform_prices[0]["current_price"] if platform_prices else 0.0

@@ -641,7 +641,12 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
                                 <span className="font-bold text-sm text-white/90 group-hover:text-white transition-colors">
                                   {store.platform}
                                 </span>
-                                {isLowest && (
+                                {isOfficial && (
+                                  <span className="px-2 py-0.5 bg-gaming-accent/20 text-gaming-accent border border-gaming-accent/30 text-[9px] font-black rounded-md flex items-center gap-0.5 uppercase tracking-wide">
+                                    ⭐ Official Store
+                                  </span>
+                                )}
+                                {isLowest && !isOfficial && (
                                   <span className="px-2 py-0.5 bg-gaming-green/15 text-gaming-green text-[9px] font-black rounded-md flex items-center gap-0.5 uppercase tracking-wide">
                                     🏆 Lowest Price
                                   </span>
