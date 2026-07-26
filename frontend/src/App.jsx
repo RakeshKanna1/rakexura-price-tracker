@@ -222,12 +222,28 @@ function App() {
                 <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 mt-3.5 w-auto sm:w-80 glass-panel rounded-2xl border border-white/10 shadow-2xl p-4.5 z-30 space-y-3.5 bg-gaming-card max-h-96 overflow-y-auto">
                   <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
                     <h4 className="text-xs uppercase font-black tracking-wider text-white">System Alerts</h4>
-                    <button 
-                      onClick={() => setShowNotifDropdown(false)}
-                      className="text-gaming-muted hover:text-white"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await axios.put(`${API_BASE}/notifications/read-all`);
+                              setNotifications([]);
+                              triggerToast("All notifications cleared!", "success");
+                            } catch (e) { console.error(e); }
+                          }}
+                          className="text-[9px] text-gaming-accent hover:underline font-bold uppercase tracking-wider"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => setShowNotifDropdown(false)}
+                        className="text-gaming-muted hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-3">
@@ -240,8 +256,15 @@ function App() {
                       notifications.map((n, i) => {
                         return (
                           <div 
-                            key={i} 
-                            onClick={() => {
+                            key={n.id || i} 
+                            onClick={async () => {
+                              try {
+                                if (n.id) {
+                                  await axios.put(`${API_BASE}/notifications/read/${n.id}`);
+                                  setNotifications(prev => prev.filter(item => item.id !== n.id));
+                                }
+                              } catch (e) { console.error(e); }
+
                               if (n.cheapshark_id) {
                                 handleViewDetails(n.cheapshark_id);
                                 setShowNotifDropdown(false);

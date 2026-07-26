@@ -968,66 +968,98 @@ async def get_suggestions(region: str = "IN"):
 
 @app.get("/api/notifications")
 async def get_notifications(region: str = "IN"):
-    """Fetch triggered alert events and historical low notifications"""
-    notifications = []
-    games_col = get_collection("games")
-    alerts_col = get_collection("alerts")
-    
+    """Fetch persistent daily rotating deal suggestions & unread system notifications"""
     r_info = REGIONS.get(region, REGIONS["IN"])
     rate = r_info["rate"]
     symbol = r_info["symbol"]
     
-    # 1. Historical lowest prices alerts
-    cursor = games_col.find({}, {
-        "cheapshark_id": 1, "current_price": 1, "lowest_ever_price": 1, "name": 1, "platform": 1
-    })
-    games = await cursor.to_list(length=1000)
+    notif_col = get_collection("notifications")
+    games_col = get_collection("games")
+    alerts_col = get_collection("alerts")
+    
+    now = datetime.utcnow()
+    today_str = now.strftime("%Y-%m-%d")
+    day_of_year = now.timetuple().tm_yday
+    
+    # 1. Generate fresh daily deal suggestions if not generated today
+    count_today = await notif_col.count_documents({"date_key": today_str, "type": "POPULAR_DEAL"})
+    if count_today == 0:
+        try:
+            # Rotate sort order dynamically based on current day of year
+            sort_modes = ["Deal Rating", "Savings", "Price", "Recent"]
+            selected_sort = sort_modes[day_of_year % len(sort_modes)]
+            
+            live_popular_deals = await get_deals_from_api(sort_by=selected_sort, page_size=15)
+            # Pick 5 unique deals for today
+            for deal in live_popular_deals[:5]:
+                cid = deal["cheapshark_id"]
+                exists = await notif_col.find_one({"date_key": today_str, "cheapshark_id": cid})
+                if not exists:
+                    sale_p_usd = deal["sale_price_usd"]
+                    norm_p_usd = deal["normal_price_usd"]
+                    disc = deal["discount_percent"]
+                    await notif_col.insert_one({
+                        "type": "POPULAR_DEAL",
+                        "cheapshark_id": cid,
+                        "title": f"🔥 Daily Suggestion: {deal['name']}",
+                        "message_usd": f"Hot deal on {deal['platform']}! '{deal['name']}' is {disc}% OFF at ${sale_p_usd} (was ${norm_p_usd}).",
+                        "sale_price_usd": sale_p_usd,
+                        "normal_price_usd": norm_p_usd,
+                        "discount_percent": disc,
+                        "platform": deal["platform"],
+                        "game_name": deal["name"],
+                        "date_key": today_str,
+                        "is_read": False,
+                        "created_at": now
+                    })
+        except Exception as e:
+            logger.error(f"Error generating daily deal suggestions: {e}")
+
+    # 2. Sync Wishlist Historical Lows to Notifications collection
+    cursor = games_col.find({}, {"cheapshark_id": 1, "current_price": 1, "lowest_ever_price": 1, "name": 1, "platform": 1})
+    games = await cursor.to_list(length=500)
     for g in games:
         buy = g.get("current_price", 0.0)
         low = g.get("lowest_ever_price", 0.0)
-        if buy <= low * 1.01:
-            notifications.append({
-                "type": "HISTORICAL_LOW",
-                "cheapshark_id": g.get("cheapshark_id"),
-                "title": "Historical Low Reached",
-                "message": f"'{g.get('name')}' is at its historical lowest price of {symbol}{round(buy * rate, 2)} on {g.get('platform')}!",
-                "timestamp": datetime.utcnow() - timedelta(minutes=random.randint(10, 59))
-            })
-            
-    # 2. Popular Game Bargain Suggestions
-    try:
-        live_popular_deals = await get_deals_from_api(sort_by="Deal Rating", page_size=10)
-        for deal in live_popular_deals[:5]:
-            sale_p = round(deal["sale_price_usd"] * rate, 2)
-            norm_p = round(deal["normal_price_usd"] * rate, 2)
-            disc = deal["discount_percent"]
-            notifications.append({
-                "type": "POPULAR_DEAL",
-                "cheapshark_id": deal["cheapshark_id"],
-                "title": f"🔥 Popular Deal Suggestion: {deal['name']}",
-                "message": f"Hot deal on {deal['platform']}! '{deal['name']}' is {disc}% OFF at {symbol}{sale_p} (was {symbol}{norm_p}).",
-                "timestamp": datetime.utcnow()
-            })
-    except Exception as e:
-        logger.error(f"Error fetching popular deal suggestions for notifications: {e}")
+        cid = g.get("cheapshark_id")
+        if buy > 0 and buy <= low * 1.01 and cid:
+            exists = await notif_col.find_one({"cheapshark_id": cid, "type": "HISTORICAL_LOW", "date_key": today_str})
+            if not exists:
+                await notif_col.insert_one({
+                    "type": "HISTORICAL_LOW",
+                    "cheapshark_id": cid,
+                    "title": "Historical Low Reached",
+                    "message_usd": f"'{g.get('name')}' is at its historical lowest price of ${round(buy, 2)} on {g.get('platform')}!",
+                    "sale_price_usd": buy,
+                    "date_key": today_str,
+                    "is_read": False,
+                    "created_at": now
+                })
 
-    # 3. Triggered price alert thresholds
-    cursor = alerts_col.find({"is_active": False}, {
-        "cheapshark_id": 1, "game_name": 1, "target_price": 1, "triggered_at": 1
-    })
-    triggered_alerts = await cursor.to_list(length=100)
-    for ta in triggered_alerts:
-        alert_target = ta.get("target_price", 0.0)
-        notifications.append({
-            "type": "TARGET_ALERT",
-            "cheapshark_id": ta.get("cheapshark_id"),
-            "title": "Target Alert Triggered",
-            "message": f"Target Hit! '{ta.get('game_name')}' fell below your target threshold of {symbol}{round(alert_target * rate, 2)}!",
-            "timestamp": ta.get("triggered_at") or datetime.utcnow()
-        })
+    # Fetch unread notifications from database
+    cursor = notif_col.find({"is_read": False}, sort=[("created_at", -1)], limit=15)
+    unreads = await cursor.to_list(length=15)
+    
+    formatted = []
+    for item in unreads:
+        item["id"] = str(item["_id"])
+        del item["_id"]
         
-    # 4. Upcoming sales event triggers
-    now = datetime.utcnow()
+        # Format currency dynamically per requested region
+        if item.get("sale_price_usd") and item.get("normal_price_usd"):
+            s_p = round(item["sale_price_usd"] * rate, 2)
+            n_p = round(item["normal_price_usd"] * rate, 2)
+            msg = f"Hot deal on {item.get('platform', 'Store')}! '{item.get('game_name', 'Game')}' is {item.get('discount_percent', 0)}% OFF at {symbol}{s_p} (was {symbol}{n_p})."
+        elif item.get("sale_price_usd"):
+            s_p = round(item["sale_price_usd"] * rate, 2)
+            msg = f"'{item.get('game_name', 'Game')}' is at its lowest price of {symbol}{s_p}!"
+        else:
+            msg = item.get("message_usd", "")
+            
+        item["message"] = msg
+        formatted.append(item)
+
+    # 3. Append upcoming sale events dynamically
     sale_calendar = [
         {"name": "Steam Autumn Sale", "date": datetime(2026, 11, 25, 18, 0, 0)},
         {"name": "Steam Winter Sale", "date": datetime(2026, 12, 22, 18, 0, 0)},
@@ -1038,14 +1070,36 @@ async def get_notifications(region: str = "IN"):
     for s in sale_calendar:
         delta = s["date"] - now
         if 0 < delta.days < 30:
-            notifications.append({
+            formatted.append({
+                "id": f"sale_{s['name'].replace(' ', '_')}",
                 "type": "SALE_UPCOMING",
                 "title": "Upcoming Sale Warning",
                 "message": f"{s['name']} is starting in {delta.days} days! Prepare target buying funds.",
-                "timestamp": datetime.utcnow()
+                "timestamp": now
             })
             
-    return notifications[:10]
+    return formatted[:10]
+
+@app.put("/api/notifications/read/{notif_id}")
+async def mark_notification_read(notif_id: str):
+    """Mark a notification as read so it disappears from the notification dropdown"""
+    notif_col = get_collection("notifications")
+    if notif_id.startswith("sale_"):
+        return {"status": "ok"}
+        
+    query_ids = [notif_id]
+    if ObjectId.is_valid(notif_id):
+        query_ids.append(ObjectId(notif_id))
+        
+    await notif_col.update_many({"_id": {"$in": query_ids}}, {"$set": {"is_read": True}})
+    return {"status": "read"}
+
+@app.put("/api/notifications/read-all")
+async def mark_all_notifications_read():
+    """Mark all active notifications as read"""
+    notif_col = get_collection("notifications")
+    await notif_col.update_many({}, {"$set": {"is_read": True}})
+    return {"status": "all_read"}
 
 # --- ADMIN / PRICE SYNC / EXPORT ENDPOINTS ---
 
