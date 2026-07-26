@@ -284,6 +284,11 @@ def invalidate_game_cache(cheapshark_id: str, steam_app_id: str = None):
 DEALS_CACHE = {}
 DEALS_CACHE_TTL = 600  # 10 minutes
 
+def clear_all_cheapshark_caches():
+    RAW_GAME_CACHE.clear()
+    DEALS_CACHE.clear()
+    logger.info("Cleared all CheapShark in-memory deal caches.")
+
 async def get_deals_from_api(
     store_id: str = None, 
     upper_price: float = None, 

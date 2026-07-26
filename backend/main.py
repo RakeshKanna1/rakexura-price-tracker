@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from bson import ObjectId
 
 from database import init_db, get_collection, parse_datetime
-from cheapshark import search_games_from_api, get_game_details_from_api, invalidate_game_cache, get_deals_from_api
+from cheapshark import search_games_from_api, get_game_details_from_api, invalidate_game_cache, get_deals_from_api, clear_all_cheapshark_caches
 from scheduler import start_scheduler, shutdown_scheduler, update_all_prices, update_single_game_prices
 from models import WishlistCreate, AlertCreate, InventoryCreate, SaleCreate
 from config import REGIONS, STORE_MAPPING
@@ -1089,6 +1089,7 @@ async def delete_alert(alert_id: str):
 @app.put("/api/refresh")
 async def force_refresh():
     try:
+        clear_all_cheapshark_caches()
         await update_all_prices()
         return {"message": "All tracked game prices successfully updated!"}
     except Exception as e:
@@ -1207,6 +1208,7 @@ async def get_dashboard_stats(region: str = "IN"):
         if disc > biggest_disc_pct:
             biggest_disc_pct = disc
             biggest_disc_game = {
+                "cheapshark_id": cid,
                 "name": g.get("name"),
                 "discount_percent": disc,
                 "thumbnail": g.get("thumbnail")
@@ -1234,6 +1236,7 @@ async def get_dashboard_stats(region: str = "IN"):
         if disc > biggest_disc_pct:
             biggest_disc_pct = disc
             biggest_disc_game = {
+                "cheapshark_id": cid,
                 "name": d["name"],
                 "discount_percent": disc,
                 "thumbnail": d["thumbnail"]
