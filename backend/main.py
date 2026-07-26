@@ -767,27 +767,41 @@ async def get_analytics(region: str = "IN"):
 
 @app.get("/api/calendar")
 async def get_calendar():
-    """Retrieve countdown dates for future publisher sales"""
+    """Retrieve countdown dates for future publisher sales with automatic rollover for past events"""
     now = datetime.utcnow()
-    events = [
-        {"name": "Steam Autumn Sale", "platform": "Steam", "date": datetime(2026, 11, 25, 18, 0, 0)},
-        {"name": "Steam Winter Sale", "platform": "Steam", "date": datetime(2026, 12, 22, 18, 0, 0)},
-        {"name": "Epic Holiday Sale", "platform": "Epic Games", "date": datetime(2026, 12, 17, 19, 0, 0)},
-        {"name": "EA Publisher Sale", "platform": "EA App", "date": datetime(2026, 9, 15, 17, 0, 0)},
-        {"name": "Ubisoft Forward Sale", "platform": "Ubisoft Store", "date": datetime(2026, 7, 18, 16, 0, 0)}
+    
+    # List of major annual PC store sale campaigns
+    base_events = [
+        {"name": "Steam Scream Fest (Halloween)", "platform": "Steam", "month": 10, "day": 26, "hour": 17},
+        {"name": "Steam Autumn Sale", "platform": "Steam", "month": 11, "day": 24, "hour": 18},
+        {"name": "Epic Games Holiday Sale", "platform": "Epic Games", "month": 12, "day": 17, "hour": 19},
+        {"name": "Steam Winter Sale", "platform": "Steam", "month": 12, "day": 22, "hour": 18},
+        {"name": "Steam Spring Sale", "platform": "Steam", "month": 3, "day": 18, "hour": 17},
+        {"name": "Steam Summer Sale", "platform": "Steam", "month": 6, "day": 25, "hour": 17},
+        {"name": "Ubisoft Store Showcase Sale", "platform": "Ubisoft Store", "month": 8, "day": 10, "hour": 16},
+        {"name": "EA Publisher Showcase Sale", "platform": "EA App", "month": 9, "day": 15, "hour": 17},
+        {"name": "GOG Anniversary Sale", "platform": "GOG.com", "month": 5, "day": 5, "hour": 15},
     ]
     
     formatted = []
-    for e in events:
-        delta = e["date"] - now
+    for e in base_events:
+        event_year = now.year
+        target_date = datetime(event_year, e["month"], e["day"], e["hour"], 0, 0)
+        
+        # Auto-rollover to next year if date in current year has passed
+        if target_date < now:
+            target_date = datetime(event_year + 1, e["month"], e["day"], e["hour"], 0, 0)
+            
+        delta = target_date - now
         formatted.append({
             "name": e["name"],
             "platform": e["platform"],
-            "date": e["date"],
+            "date": target_date.isoformat(),
             "days_remaining": max(delta.days, 0),
             "seconds_remaining": max(int(delta.total_seconds()), 0)
         })
-    formatted.sort(key=lambda x: x["date"])
+        
+    formatted.sort(key=lambda x: x["seconds_remaining"])
     return formatted
 
 # --- RAKEXURA SUGGESTIONS (AI RESELLING RECOMMENDATIONS) ---
@@ -1396,16 +1410,28 @@ async def chat_with_advisor(payload: ChatPayload, region: str = "IN"):
 @app.get("/api/countdown")
 async def get_steam_sale_countdown():
     now = datetime.utcnow()
-    next_sale_date = datetime(2026, 11, 25, 18, 0, 0)
-    if now > next_sale_date:
-        next_sale_date = datetime(2026, 12, 22, 18, 0, 0)
+    steam_events = [
+        {"name": "Steam Scream Fest", "month": 10, "day": 26, "hour": 17},
+        {"name": "Steam Autumn Sale", "month": 11, "day": 24, "hour": 18},
+        {"name": "Steam Winter Sale", "month": 12, "day": 22, "hour": 18},
+        {"name": "Steam Spring Sale", "month": 3, "day": 18, "hour": 17},
+        {"name": "Steam Summer Sale", "month": 6, "day": 25, "hour": 17},
+    ]
+    
+    upcoming = []
+    for e in steam_events:
+        y = now.year
+        t = datetime(y, e["month"], e["day"], e["hour"], 0, 0)
+        if t < now:
+            t = datetime(y + 1, e["month"], e["day"], e["hour"], 0, 0)
+        upcoming.append({"name": e["name"], "target_date": t, "delta": t - now})
         
-    delta = next_sale_date - now
+    next_event = min(upcoming, key=lambda x: x["delta"])
     return {
-        "sale_name": "Steam Autumn Sale" if next_sale_date.month == 11 else "Steam Winter Sale",
-        "target_date": next_sale_date,
-        "seconds_remaining": max(int(delta.total_seconds()), 0),
-        "days_remaining": max(delta.days, 0)
+        "sale_name": next_event["name"],
+        "target_date": next_event["target_date"].isoformat(),
+        "seconds_remaining": max(int(next_event["delta"].total_seconds()), 0),
+        "days_remaining": max(next_event["delta"].days, 0)
     }
 
 @app.get("/api/trending")
