@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import SearchGame from './components/SearchGame';
@@ -23,6 +23,29 @@ function App() {
   // Smart Notifications State
   const [notifications, setNotifications] = useState([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setShowNotifDropdown(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowNotifDropdown(false);
+      }
+    };
+
+    if (showNotifDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showNotifDropdown]);
 
   // Toast notifications state
   const [toast, setToast] = useState({
@@ -180,7 +203,7 @@ function App() {
             <div className="flex items-center gap-3.5 ml-auto">
             
             {/* Notification Bell */}
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setShowNotifDropdown(!showNotifDropdown)}
                 className="flex items-center justify-center w-10 h-10 rounded-xl bg-gaming-card border border-white/5 shadow-glow hover:border-white/10 active:scale-95 transition-all text-white"
