@@ -218,15 +218,25 @@ function App() {
                         return (
                           <div 
                             key={i} 
-                            className="p-3 bg-white/[0.02] border border-white/5 rounded-xl flex gap-3 items-start"
+                            onClick={() => {
+                              if (n.cheapshark_id) {
+                                handleViewDetails(n.cheapshark_id);
+                                setShowNotifDropdown(false);
+                              } else if (n.type === 'SALE_UPCOMING') {
+                                setActiveTab('calendar');
+                                setShowNotifDropdown(false);
+                              }
+                            }}
+                            className="p-3 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 rounded-xl flex gap-3 items-start cursor-pointer transition-all group"
                           >
                             <div className="pt-0.5 flex-shrink-0">
+                              {n.type === 'POPULAR_DEAL' && <Flame className="w-3.5 h-3.5 text-gaming-accent animate-pulse" />}
                               {n.type === 'HISTORICAL_LOW' && <TrendingDown className="w-3.5 h-3.5 text-gaming-green" />}
                               {n.type === 'TARGET_ALERT' && <ShieldAlert className="w-3.5 h-3.5 text-red-500" />}
                               {n.type === 'SALE_UPCOMING' && <Clock className="w-3.5 h-3.5 text-gaming-blue" />}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-[10px] font-black text-white">{n.title}</p>
+                              <p className="text-[10px] font-black text-white group-hover:text-gaming-accent transition-colors">{n.title}</p>
                               <p className="text-[10px] text-gaming-muted mt-1 leading-normal">{n.message}</p>
                             </div>
                           </div>

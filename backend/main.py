@@ -979,7 +979,7 @@ async def get_notifications(region: str = "IN"):
     
     # 1. Historical lowest prices alerts
     cursor = games_col.find({}, {
-        "current_price": 1, "lowest_ever_price": 1, "name": 1, "platform": 1
+        "cheapshark_id": 1, "current_price": 1, "lowest_ever_price": 1, "name": 1, "platform": 1
     })
     games = await cursor.to_list(length=1000)
     for g in games:
@@ -988,26 +988,45 @@ async def get_notifications(region: str = "IN"):
         if buy <= low * 1.01:
             notifications.append({
                 "type": "HISTORICAL_LOW",
+                "cheapshark_id": g.get("cheapshark_id"),
                 "title": "Historical Low Reached",
                 "message": f"'{g.get('name')}' is at its historical lowest price of {symbol}{round(buy * rate, 2)} on {g.get('platform')}!",
                 "timestamp": datetime.utcnow() - timedelta(minutes=random.randint(10, 59))
             })
             
-    # 2. Triggered price alert thresholds
+    # 2. Popular Game Bargain Suggestions
+    try:
+        live_popular_deals = await get_deals_from_api(sort_by="Deal Rating", page_size=10)
+        for deal in live_popular_deals[:5]:
+            sale_p = round(deal["sale_price_usd"] * rate, 2)
+            norm_p = round(deal["normal_price_usd"] * rate, 2)
+            disc = deal["discount_percent"]
+            notifications.append({
+                "type": "POPULAR_DEAL",
+                "cheapshark_id": deal["cheapshark_id"],
+                "title": f"🔥 Popular Deal Suggestion: {deal['name']}",
+                "message": f"Hot deal on {deal['platform']}! '{deal['name']}' is {disc}% OFF at {symbol}{sale_p} (was {symbol}{norm_p}).",
+                "timestamp": datetime.utcnow()
+            })
+    except Exception as e:
+        logger.error(f"Error fetching popular deal suggestions for notifications: {e}")
+
+    # 3. Triggered price alert thresholds
     cursor = alerts_col.find({"is_active": False}, {
-        "game_name": 1, "target_price": 1, "triggered_at": 1
+        "cheapshark_id": 1, "game_name": 1, "target_price": 1, "triggered_at": 1
     })
     triggered_alerts = await cursor.to_list(length=100)
     for ta in triggered_alerts:
         alert_target = ta.get("target_price", 0.0)
         notifications.append({
             "type": "TARGET_ALERT",
+            "cheapshark_id": ta.get("cheapshark_id"),
             "title": "Target Alert Triggered",
             "message": f"Target Hit! '{ta.get('game_name')}' fell below your target threshold of {symbol}{round(alert_target * rate, 2)}!",
             "timestamp": ta.get("triggered_at") or datetime.utcnow()
         })
         
-    # 3. Upcoming sales event triggers
+    # 4. Upcoming sales event triggers
     now = datetime.utcnow()
     sale_calendar = [
         {"name": "Steam Autumn Sale", "date": datetime(2026, 11, 25, 18, 0, 0)},
