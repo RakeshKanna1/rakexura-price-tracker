@@ -794,18 +794,56 @@ async def get_calendar():
 
 @app.get("/api/suggestions")
 async def get_suggestions(region: str = "IN"):
-    """Recommend game purchases based on active sales, historical lows, and deep discounts"""
+    """Recommend low price games based on recent search history and active deals"""
     games_col = get_collection("games")
+    history_col = get_collection("search_history")
+    
+    r_info = REGIONS.get(region, REGIONS["IN"])
+    rate = r_info["rate"]
+    symbol = r_info["symbol"]
+    
+    # 1. Fetch user's recent search terms
+    recent_searches_cursor = history_col.find(sort=[("timestamp", -1)], limit=5)
+    recent_items = await recent_searches_cursor.to_list(length=5)
+    search_terms = [item.get("query", "").strip() for item in recent_items if item.get("query")]
+    
+    # 2. Fetch recommendations dynamically based on recent search terms
+    based_on_searches = []
+    seen_ids = set()
+    
+    for term in search_terms:
+        if len(based_on_searches) >= 8:
+            break
+        try:
+            results = await search_games_from_api(term)
+            for res in results[:3]:
+                cid = res.get("cheapshark_id")
+                if cid and cid not in seen_ids:
+                    seen_ids.add(cid)
+                    cheap_p_usd = res.get("cheapest_price") or 0.0
+                    buy_p = cheap_p_usd * rate
+                    based_on_searches.append({
+                        "cheapshark_id": cid,
+                        "name": res.get("name"),
+                        "thumbnail": res.get("thumbnail"),
+                        "buy_price": round(buy_p, 2),
+                        "original_price": round(buy_p * 1.5, 2),
+                        "discount": 33.0,
+                        "lowest_ever": round(buy_p, 2),
+                        "platform": "Steam / PC",
+                        "searched_for": term,
+                        "currency_symbol": symbol
+                    })
+        except Exception:
+            pass
+
+    # 3. Also fetch tracked games & low price deals
     cursor = games_col.find({}, {
         "cheapshark_id": 1, "name": 1, "thumbnail": 1, "current_price": 1,
         "lowest_ever_price": 1, "original_price": 1, "discount_percent": 1,
         "platform": 1
     })
     games = await cursor.to_list(length=1000)
-    
-    r_info = REGIONS.get(region, REGIONS["IN"])
-    rate = r_info["rate"]
-    symbol = r_info["symbol"]
     
     historical_lows = []
     deep_discounts = []
@@ -839,7 +877,7 @@ async def get_suggestions(region: str = "IN"):
         if buy_p <= 299.0 * (rate / 83.0):
             under_bargain.append(game_info)
             
-    if not games:
+    if not games and not based_on_searches:
         mock_games = [
             {
                 "cheapshark_id": "mock_gta",
@@ -850,52 +888,29 @@ async def get_suggestions(region: str = "IN"):
                 "discount": 63.0,
                 "lowest_ever": round(749.0 * (rate / 83.0), 2),
                 "platform": "Epic Games",
+                "searched_for": "GTA V",
                 "currency_symbol": symbol
             },
             {
-                "cheapshark_id": "mock_rdr2",
-                "name": "Red Dead Redemption 2",
-                "thumbnail": "https://shared.fastly.steamstatic.com/store_images_shared/app/1174180/header.jpg",
-                "buy_price": round(1200.0 * (rate / 83.0), 2),
-                "original_price": round(3199.0 * (rate / 83.0), 2),
-                "discount": 62.0,
-                "lowest_ever": round(1050.0 * (rate / 83.0), 2),
-                "platform": "Steam",
-                "currency_symbol": symbol
-            },
-            {
-                "cheapshark_id": "mock_witcher",
-                "name": "The Witcher 3: Wild Hunt",
-                "thumbnail": "https://shared.fastly.steamstatic.com/store_images_shared/app/292030/header.jpg",
-                "buy_price": round(300.0 * (rate / 83.0), 2),
-                "original_price": round(1499.0 * (rate / 83.0), 2),
-                "discount": 80.0,
-                "lowest_ever": round(299.0 * (rate / 83.0), 2),
-                "platform": "Steam",
-                "currency_symbol": symbol
-            },
-            {
-                "cheapshark_id": "mock_cyberpunk",
-                "name": "Cyberpunk 2077",
-                "thumbnail": "https://shared.fastly.steamstatic.com/store_images_shared/app/1091500/header.jpg",
-                "buy_price": round(1499.0 * (rate / 83.0), 2),
+                "cheapshark_id": "mock_deadspace",
+                "name": "Dead Space (2023)",
+                "thumbnail": "https://shared.fastly.steamstatic.com/store_images_shared/app/1698200/header.jpg",
+                "buy_price": round(899.0 * (rate / 83.0), 2),
                 "original_price": round(2999.0 * (rate / 83.0), 2),
-                "discount": 50.0,
-                "lowest_ever": round(1499.0 * (rate / 83.0), 2),
-                "platform": "Epic Games",
+                "discount": 70.0,
+                "lowest_ever": round(899.0 * (rate / 83.0), 2),
+                "platform": "Steam",
+                "searched_for": "Dead Space",
                 "currency_symbol": symbol
             }
         ]
         for mg in mock_games:
+            based_on_searches.append(mg)
             historical_lows.append(mg)
-            if mg["discount"] >= 70.0:
-                deep_discounts.append(mg)
-            if mg["discount"] >= 40.0:
-                on_sale_now.append(mg)
-            if mg["buy_price"] <= 300.0 * (rate / 83.0):
-                under_bargain.append(mg)
+            on_sale_now.append(mg)
 
     return {
+        "based_on_searches": based_on_searches[:8],
         "on_sale_now": on_sale_now[:8],
         "historical_lows": historical_lows[:8],
         "deep_discounts": deep_discounts[:8],
