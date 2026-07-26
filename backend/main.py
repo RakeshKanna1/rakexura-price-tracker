@@ -12,7 +12,7 @@ from bson import ObjectId
 from database import init_db, get_collection, parse_datetime
 from cheapshark import search_games_from_api, get_game_details_from_api, invalidate_game_cache, get_deals_from_api, clear_all_cheapshark_caches
 from scheduler import start_scheduler, shutdown_scheduler, update_all_prices, update_single_game_prices
-from models import WishlistCreate, AlertCreate, InventoryCreate, SaleCreate
+from models import WishlistCreate, AlertCreate, InventoryCreate, SaleCreate, BroadcastNotificationCreate
 from config import REGIONS, STORE_MAPPING
 from ai_service import get_game_ai_analysis, get_portfolio_insights, answer_chat_query
 
@@ -1100,6 +1100,39 @@ async def mark_all_notifications_read():
     notif_col = get_collection("notifications")
     await notif_col.update_many({}, {"$set": {"is_read": True}})
     return {"status": "all_read"}
+
+@app.post("/api/broadcast-notification")
+async def send_broadcast_notification(data: BroadcastNotificationCreate):
+    """Admin endpoint to broadcast custom notifications and special offers to all users"""
+    notif_col = get_collection("notifications")
+    logs_col = get_collection("logs")
+    
+    now = datetime.utcnow()
+    today_str = now.strftime("%Y-%m-%d")
+    
+    notif_doc = {
+        "type": "POPULAR_DEAL" if data.category == "Special Offer" else "BROADCAST",
+        "category": data.category,
+        "cheapshark_id": data.cheapshark_id,
+        "game_name": data.game_name,
+        "title": data.title,
+        "message_usd": data.message,
+        "short_message": data.short_message or data.title,
+        "date_key": today_str,
+        "is_read": False,
+        "created_at": now
+    }
+    res = await notif_col.insert_one(notif_doc)
+    
+    # Log admin broadcast event
+    await logs_col.insert_one({
+        "event_type": "ALERT_TRIGGERED",
+        "game_name": data.game_name or "Broadcast",
+        "message": f"Admin Broadcast Sent: '{data.title}' via {data.method}",
+        "timestamp": now
+    })
+    
+    return {"message": "Notification broadcasted successfully", "id": str(res.inserted_id)}
 
 # --- ADMIN / PRICE SYNC / EXPORT ENDPOINTS ---
 

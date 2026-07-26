@@ -79,3 +79,14 @@ class SaleCreate(BaseModel):
     purchase_cost: float
     payment_status: str
     delivery_status: str
+
+class BroadcastNotificationCreate(BaseModel):
+    title: str
+    message: str
+    short_message: Optional[str] = None
+    category: Optional[str] = "Announcement"
+    cheapshark_id: Optional[str] = None
+    game_name: Optional[str] = None
+    target: Optional[str] = "All Users"
+    method: Optional[str] = "In-App Notification"
+    region: Optional[str] = "IN"

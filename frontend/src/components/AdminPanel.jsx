@@ -1,21 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, RefreshCw, Terminal, AlertTriangle, Info, Trash2, Database, Loader2, RefreshCw as LoopIcon } from 'lucide-react';
+import { 
+  Shield, RefreshCw, Terminal, AlertTriangle, Info, Trash2, Database, Loader2, 
+  Send, Sparkles, Receipt, Star, Gamepad2, Flame, Gift, KeyRound, Megaphone, LifeBuoy, Search 
+} from 'lucide-react';
 import axios from 'axios';
 import { API_BASE } from '../config';
 
-const AdminPanel = ({ triggerToast }) => {
+const AdminPanel = ({ triggerToast, region = 'IN' }) => {
   const [logs, setLogs] = useState([]);
   const [games, setGames] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
 
+  // Broadcaster State
+  const [selectedTemplate, setSelectedTemplate] = useState('Special Offer');
+  const [selectedGameId, setSelectedGameId] = useState('');
+  const [orderRef, setOrderRef] = useState('');
+  const [fetchingPrice, setFetchingPrice] = useState(false);
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
+
+  const [broadcaster, setBroadcaster] = useState({
+    title: '',
+    message: '',
+    short_message: '',
+    target: 'All Users',
+    method: 'In-App & Push Notification'
+  });
+
+  const templates = [
+    { id: 'Order Invoice', label: 'Order Invoice', icon: Receipt },
+    { id: 'Review Request', label: 'Review Request', icon: Star },
+    { id: 'New Game', label: 'New Game', icon: Gamepad2 },
+    { id: 'Special Offer', label: 'Special Offer', icon: Flame },
+    { id: 'Giveaway Alert', label: 'Giveaway Alert', icon: Gift },
+    { id: 'Activation Guide', label: 'Activation Guide', icon: KeyRound },
+    { id: 'Announcement', label: 'Announcement', icon: Megaphone },
+    { id: 'Support Notice', label: 'Support Notice', icon: LifeBuoy }
+  ];
+
   const fetchAdminData = async () => {
     try {
       const logsRes = await axios.get(`${API_BASE}/logs`);
       setLogs(logsRes.data);
 
-      const gamesRes = await axios.get(`${API_BASE}/wishlist`);
+      const gamesRes = await axios.get(`${API_BASE}/wishlist`, { params: { region } });
       setGames(gamesRes.data);
 
       setLoading(false);
@@ -27,14 +56,181 @@ const AdminPanel = ({ triggerToast }) => {
 
   useEffect(() => {
     fetchAdminData();
-  }, []);
+  }, [region]);
+
+  // Handle Game Selection & Price Auto-Fill for Special Offer
+  const handleGameSelect = async (cheapsharkId) => {
+    setSelectedGameId(cheapsharkId);
+    if (!cheapsharkId) return;
+
+    const game = games.find(g => g.cheapshark_id === cheapsharkId);
+    const gameName = game ? game.name : 'Selected Game';
+
+    setFetchingPrice(true);
+    try {
+      const res = await axios.get(`${API_BASE}/prices/${cheapsharkId}`, { params: { region } });
+      const details = res.data;
+
+      const currentPrice = details.lowest_price ? `${details.currency_symbol}${details.lowest_price}` : (game ? `${game.currency_symbol}${game.current_price}` : 'Special Price');
+      const discount = details.platform_prices?.[0]?.discount_percent ? Math.round(details.platform_prices[0].discount_percent) : (game?.discount_percent ? Math.round(game.discount_percent) : 50);
+      const origPrice = details.platform_prices?.[0]?.original_price ? `${details.currency_symbol}${details.platform_prices[0].original_price}` : '';
+
+      if (selectedTemplate === 'Special Offer') {
+        setBroadcaster({
+          title: `🔥 Special Offer: ${gameName} is ${discount}% OFF!`,
+          message: `Special Limited-Time Offer! ${gameName} is now on sale for only ${currentPrice}${origPrice ? ` (was ${origPrice}, saving ${discount}% OFF)` : ''}. Grab your key on Rakexura before stock runs out!`,
+          short_message: `🔥 Special Offer: ${gameName} is ${discount}% OFF at ${currentPrice}! Limited stock.`,
+          target: 'All Users',
+          method: 'In-App & Push Notification'
+        });
+      } else if (selectedTemplate === 'New Game') {
+        setBroadcaster({
+          title: `${gameName} is now available`,
+          message: `${gameName} has arrived at Rakexura. Check platforms, live pricing, trailers, and current offers at ${currentPrice}.`,
+          short_message: `🎮 New Game: ${gameName} is now live on Rakexura at ${currentPrice}!`,
+          target: 'All Users',
+          method: 'In-App & Push Notification'
+        });
+      } else if (selectedTemplate === 'Giveaway Alert') {
+        setBroadcaster({
+          title: `🎁 Free Giveaway Alert: ${gameName}`,
+          message: `Enter the Rakexura free giveaway to win a free activation key for ${gameName}! Winners announced soon.`,
+          short_message: `🎁 Giveaway Alert: Win a free copy of ${gameName}!`,
+          target: 'All Users',
+          method: 'In-App & Push Notification'
+        });
+      }
+    } catch (e) {
+      console.error("Error fetching price for template:", e);
+      if (selectedTemplate === 'Special Offer') {
+        setBroadcaster({
+          title: `🔥 Special Offer: ${gameName} is on Sale!`,
+          message: `Special Limited-Time Offer! ${gameName} is now available at a discounted price on Rakexura. Check live pricing now!`,
+          short_message: `🔥 Special Offer: ${gameName} is now on sale!`,
+          target: 'All Users',
+          method: 'In-App & Push Notification'
+        });
+      }
+    } finally {
+      setFetchingPrice(false);
+    }
+  };
+
+  // Handle Template Switching
+  const handleTemplateChange = (tmplId) => {
+    setSelectedTemplate(tmplId);
+    const game = games.find(g => g.cheapshark_id === selectedGameId);
+    const gameName = game ? game.name : 'Just Cause 3';
+
+    if (tmplId === 'Special Offer') {
+      if (selectedGameId) {
+        handleGameSelect(selectedGameId);
+      } else {
+        setBroadcaster({
+          title: `🔥 Special Offer: Exclusive PC Store Deals Active!`,
+          message: `Huge price drops discovered on top PC games! Save up to 90% OFF on Steam, Epic Games, GOG, and EA App deals today on Rakexura.`,
+          short_message: `🔥 Special Offer: Up to 90% OFF on top PC games today!`,
+          target: 'All Users',
+          method: 'In-App & Push Notification'
+        });
+      }
+    } else if (tmplId === 'New Game') {
+      setBroadcaster({
+        title: `${gameName} is now available`,
+        message: `${gameName} has arrived at Rakexura. Check platforms, live pricing, trailers, and current offers.`,
+        short_message: `🎮 New Game: ${gameName} is now live on Rakexura!`,
+        target: 'All Users',
+        method: 'In-App Notification'
+      });
+    } else if (tmplId === 'Order Invoice') {
+      setBroadcaster({
+        title: `🧾 Order Invoice & Delivery Confirmation`,
+        message: `Your order ref #${orderRef || 'RKX-2607-000064'} has been processed successfully. Your digital key is ready for redemption.`,
+        short_message: `🧾 Invoice #${orderRef || 'RKX-2607-000064'} processed! Check your receipt.`,
+        target: 'Order Customer',
+        method: 'Email & In-App Notification'
+      });
+    } else if (tmplId === 'Giveaway Alert') {
+      setBroadcaster({
+        title: `🎁 Free Giveaway Alert: ${gameName}`,
+        message: `Enter the Rakexura free giveaway to win a free copy of ${gameName}! Winners announced soon.`,
+        short_message: `🎁 Giveaway Alert: Win a free copy of ${gameName}!`,
+        target: 'All Users',
+        method: 'In-App Notification'
+      });
+    } else if (tmplId === 'Activation Guide') {
+      setBroadcaster({
+        title: `🗝️ Game Key Activation Guide`,
+        message: `Follow our step-by-step guide to easily redeem and activate your digital serial key on Steam, Epic Games Store, and EA App.`,
+        short_message: `🗝️ Activation Guide: How to redeem your game keys cleanly.`,
+        target: 'All Users',
+        method: 'In-App Notification'
+      });
+    } else if (tmplId === 'Announcement') {
+      setBroadcaster({
+        title: `📢 System Update & Announcement`,
+        message: `Important platform upgrades and live regional currency tracking updates are now active on Rakexura.`,
+        short_message: `📢 Announcement: New features updated on Rakexura!`,
+        target: 'All Users',
+        method: 'In-App & Push Notification'
+      });
+    } else if (tmplId === 'Support Notice') {
+      setBroadcaster({
+        title: `⚽ Customer Support Notice`,
+        message: `Need assistance with an order or key activation? Our 24/7 support desk is available to assist you.`,
+        short_message: `⚽ Support Notice: Need help with your order? Contact support.`,
+        target: 'All Users',
+        method: 'In-App Notification'
+      });
+    } else if (tmplId === 'Review Request') {
+      setBroadcaster({
+        title: `⭐ Leave a Customer Review`,
+        message: `Enjoying your purchase? Help other gamers by sharing your experience with Rakexura!`,
+        short_message: `⭐ Share your feedback with the Rakexura community!`,
+        target: 'Recent Buyers',
+        method: 'In-App Notification'
+      });
+    }
+  };
+
+  const handleSendBroadcast = async (e) => {
+    e.preventDefault();
+    if (!broadcaster.title || !broadcaster.message) {
+      triggerToast("Please fill in both title and message body.", "error");
+      return;
+    }
+
+    setSendingBroadcast(true);
+    try {
+      const selectedGame = games.find(g => g.cheapshark_id === selectedGameId);
+      await axios.post(`${API_BASE}/broadcast-notification`, {
+        title: broadcaster.title,
+        message: broadcaster.message,
+        short_message: broadcaster.short_message || broadcaster.title,
+        category: selectedTemplate,
+        cheapshark_id: selectedGameId || null,
+        game_name: selectedGame ? selectedGame.name : null,
+        target: broadcaster.target,
+        method: broadcaster.method,
+        region
+      });
+
+      triggerToast("Broadcast notification sent successfully!", "success");
+      fetchAdminData(); // Refresh activity log
+    } catch (err) {
+      console.error(err);
+      triggerToast("Failed to send broadcast notification.", "error");
+    } finally {
+      setSendingBroadcast(false);
+    }
+  };
 
   const handleForceRefresh = async () => {
     setRefreshing(true);
     try {
       const res = await axios.put(`${API_BASE}/refresh`);
       triggerToast(res.data.message || "Manual check complete!", "success");
-      await fetchAdminData(); // reload log list
+      await fetchAdminData();
     } catch (err) {
       triggerToast("Failed to run price checks.", "error");
     } finally {
@@ -48,7 +244,7 @@ const AdminPanel = ({ triggerToast }) => {
       await axios.delete(`${API_BASE}/game/${cheapsharkId}`);
       setGames(games.filter(g => g.cheapshark_id !== cheapsharkId));
       triggerToast(`Removed tracking for '${name}'`, "success");
-      await fetchAdminData(); // reload log list
+      await fetchAdminData();
     } catch (err) {
       triggerToast("Failed to remove game.", "error");
     } finally {
@@ -93,17 +289,148 @@ const AdminPanel = ({ triggerToast }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
           <Shield className="w-8 h-8 text-gaming-accent" />
           Admin Panel
         </h2>
-        <p className="text-gaming-muted mt-1 text-sm">System management, forced background runs, and debug database streams.</p>
+        <p className="text-gaming-muted mt-1 text-sm">System management, broadcast offer notifications, and debug activity streams.</p>
       </div>
 
+      {/* NOTIFICATION BROADCASTER & SPECIAL OFFER BUILDER */}
+      <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-6 bg-gradient-to-b from-gaming-card to-gaming-bg">
+        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="w-5 h-5 text-gaming-accent" />
+            <h3 className="text-sm uppercase font-black tracking-widest text-white">Select Notification Template</h3>
+          </div>
+          {fetchingPrice && (
+            <span className="text-xs text-gaming-accent flex items-center gap-1.5 font-bold">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Fetching live deal price...
+            </span>
+          )}
+        </div>
+
+        {/* Template Selection Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {templates.map((t) => {
+            const Icon = t.icon;
+            const isSelected = selectedTemplate === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => handleTemplateChange(t.id)}
+                className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs font-bold transition-all ${
+                  isSelected 
+                    ? 'bg-gaming-accent/20 border-gaming-accent text-white shadow-glow' 
+                    : 'bg-white/[0.02] border-white/5 text-gaming-muted hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isSelected ? 'text-gaming-accent' : 'text-gaming-muted'}`} />
+                <span className="truncate">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Form Fields */}
+        <form onSubmit={handleSendBroadcast} className="space-y-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Choose Game */}
+            <div>
+              <label className="text-[10px] uppercase font-black tracking-wider text-gaming-muted block mb-1.5">
+                Choose a Game (Auto-fill live deal price)
+              </label>
+              <select
+                value={selectedGameId}
+                onChange={(e) => handleGameSelect(e.target.value)}
+                className="w-full bg-gaming-bg border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-gaming-accent/40"
+              >
+                <option value="">-- Choose tracked game --</option>
+                {games.map((g) => (
+                  <option key={g.cheapshark_id} value={g.cheapshark_id}>
+                    {g.name} ({g.currency_symbol}{g.current_price})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Target Audience */}
+            <div>
+              <label className="text-[10px] uppercase font-black tracking-wider text-gaming-muted block mb-1.5">
+                Target Audience
+              </label>
+              <select
+                value={broadcaster.target}
+                onChange={(e) => setBroadcaster({ ...broadcaster, target: e.target.value })}
+                className="w-full bg-gaming-bg border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-gaming-accent/40"
+              >
+                <option value="All Users">All Active Users</option>
+                <option value="Wishlist Users">Wishlist Subscribers</option>
+                <option value="Recent Buyers">Recent Buyers</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Title / Subject */}
+          <div>
+            <label className="text-[10px] uppercase font-black tracking-wider text-gaming-muted block mb-1.5">
+              Title / Email Subject
+            </label>
+            <input
+              type="text"
+              value={broadcaster.title}
+              onChange={(e) => setBroadcaster({ ...broadcaster, title: e.target.value })}
+              placeholder="e.g. 🔥 Special Offer: Just Cause 3 is 85% OFF!"
+              className="w-full bg-gaming-bg border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-gaming-accent/40"
+            />
+          </div>
+
+          {/* Message Body */}
+          <div>
+            <label className="text-[10px] uppercase font-black tracking-wider text-gaming-muted block mb-1.5">
+              Message Body (Email & Main Notification)
+            </label>
+            <textarea
+              rows={3}
+              value={broadcaster.message}
+              onChange={(e) => setBroadcaster({ ...broadcaster, message: e.target.value })}
+              placeholder="Special offer description with pricing and platform links..."
+              className="w-full bg-gaming-bg border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-medium text-white focus:outline-none focus:border-gaming-accent/40 resize-none"
+            />
+          </div>
+
+          {/* Push Notification Short Message */}
+          <div>
+            <label className="text-[10px] uppercase font-black tracking-wider text-gaming-accent block mb-1.5">
+              Push Notification Short Message (Auto-Filled)
+            </label>
+            <input
+              type="text"
+              value={broadcaster.short_message}
+              onChange={(e) => setBroadcaster({ ...broadcaster, short_message: e.target.value })}
+              placeholder="🔥 Special Offer: Just Cause 3 is 85% OFF at ₹149! Grab it now."
+              className="w-full bg-gaming-bg border border-gaming-accent/30 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-gaming-accent/60"
+            />
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={sendingBroadcast}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-gaming-accent hover:opacity-90 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all"
+          >
+            {sendingBroadcast ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {sendingBroadcast ? 'Broadcasting Notification...' : `Broadcast ${selectedTemplate} Notification`}
+          </button>
+        </form>
+      </div>
+
+      {/* SYSTEM LOGS & DATABASE CONTROLS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Logs (Terminal Stream style) */}
+        {/* Left Column: Logs */}
         <div className="lg:col-span-2 glass-panel p-6 rounded-3xl border border-white/5 flex flex-col h-[520px]">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2.5">
@@ -142,7 +469,7 @@ const AdminPanel = ({ triggerToast }) => {
           </div>
         </div>
 
-        {/* Right Column: Database Health & Actions */}
+        {/* Right Column: Controls & Monitored Items */}
         <div className="space-y-6 lg:col-span-1">
           {/* Actions Box */}
           <div className="glass-panel p-6 rounded-3xl border border-white/5 space-y-5 bg-gradient-to-b from-gaming-card to-gaming-bg/40">
