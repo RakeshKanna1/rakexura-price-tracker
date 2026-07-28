@@ -30,6 +30,29 @@ app.add_middleware(
 class SellPriceUpdate(BaseModel):
     sell_price: float
 
+REFRESH_COUNTER = 0
+
+def get_daily_deal_params(offset_index: int = 0):
+    """
+    Generate date-seeded sort mode, page numbers, and random seed 
+    so games on sale vary every single day automatically.
+    """
+    now = datetime.utcnow()
+    date_str = now.strftime("%Y-%m-%d")
+    day_of_year = now.timetuple().tm_yday
+    
+    seed_str = f"{date_str}_{day_of_year}_{REFRESH_COUNTER}_{offset_index}"
+    rng = random.Random(seed_str)
+    
+    sort_options = ["Deal Rating", "Savings", "Price", "Metacritic", "Recent", "Release", "Title"]
+    primary_sort = sort_options[(day_of_year + offset_index) % len(sort_options)]
+    secondary_sort = sort_options[(day_of_year + offset_index + 2) % len(sort_options)]
+    
+    page_1 = (day_of_year + offset_index) % 6
+    page_2 = (day_of_year + offset_index + 1) % 6
+    
+    return primary_sort, secondary_sort, page_1, page_2, rng
+
 @app.on_event("startup")
 async def startup_event():
     await init_db()
@@ -808,7 +831,7 @@ async def get_calendar():
 
 @app.get("/api/suggestions")
 async def get_suggestions(region: str = "IN"):
-    """Recommend low price games based on recent search history and active live deals"""
+    """Recommend low price games based on recent search history and active live deals, rotating daily"""
     games_col = get_collection("games")
     history_col = get_collection("search_history")
     
@@ -816,17 +839,28 @@ async def get_suggestions(region: str = "IN"):
     rate = r_info["rate"]
     symbol = r_info["symbol"]
     
+    primary_sort, secondary_sort, page_1, page_2, rng = get_daily_deal_params(offset_index=0)
+    
     # 1. Fetch user's recent search terms
     recent_searches_cursor = history_col.find(sort=[("timestamp", -1)], limit=5)
     recent_items = await recent_searches_cursor.to_list(length=5)
     search_terms = [item.get("query", "").strip() for item in recent_items if item.get("query")]
     
-    # Fallback to popular AAA terms if search history is empty
-    default_queries = ["GTA V", "Red Dead Redemption 2", "Cyberpunk 2077", "Elden Ring", "Dead Space"]
+    # Fallback to rotating AAA terms if search history is empty so default recommendations vary daily
+    all_default_queries = [
+        "GTA V", "Red Dead Redemption 2", "Cyberpunk 2077", "Elden Ring", "Dead Space",
+        "Witcher 3", "God of War", "Hogwarts Legacy", "Call of Duty", "Far Cry",
+        "Resident Evil", "Assassins Creed", "Spider-Man", "Monster Hunter", "Horizon"
+    ]
+    now = datetime.utcnow()
+    day_of_year = now.timetuple().tm_yday
+    start_idx = (day_of_year * 3) % len(all_default_queries)
+    rotated_defaults = all_default_queries[start_idx:] + all_default_queries[:start_idx]
+    
     if not search_terms:
-        search_terms = default_queries
+        search_terms = rotated_defaults[:5]
     elif len(search_terms) < 3:
-        for dq in default_queries:
+        for dq in rotated_defaults:
             if dq not in search_terms and len(search_terms) < 5:
                 search_terms.append(dq)
                 
@@ -861,9 +895,14 @@ async def get_suggestions(region: str = "IN"):
         except Exception:
             pass
 
-    # 3. Fetch Live CheapShark Deals for storewide categories
-    live_deals_rating = await get_deals_from_api(sort_by="Deal Rating", page_size=60)
-    live_bargain_deals = await get_deals_from_api(upper_price=5.0, sort_by="Price", page_size=30)
+    # 3. Fetch Live CheapShark Deals using daily rotating page offsets and sort orders
+    live_deals_p1 = await get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1)
+    live_deals_p2 = await get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2)
+    live_bargain_deals = await get_deals_from_api(upper_price=5.0, sort_by="Price", page_size=40, page_number=page_1)
+    
+    combined_live_deals = live_deals_p1 + live_deals_p2
+    rng.shuffle(combined_live_deals)
+    rng.shuffle(live_bargain_deals)
     
     def format_deal_item(deal: dict) -> dict:
         buy_p = deal["sale_price_usd"] * rate
@@ -931,24 +970,19 @@ async def get_suggestions(region: str = "IN"):
             under_bargain.append(game_info)
             if cid: seen_bargain.add(cid)
 
-    # Priority 2: Merge live CheapShark deals so tabs are NEVER empty
-    sorted_by_discount = sorted(live_deals_rating, key=lambda x: x["discount_percent"], reverse=True)
-
-    for d in live_deals_rating:
+    # Priority 2: Merge live CheapShark deals dynamically
+    for d in combined_live_deals:
         cid = d["cheapshark_id"]
         item = format_deal_item(d)
         if cid not in seen_on_sale:
             seen_on_sale.add(cid)
             on_sale_now.append(item)
-        if cid not in seen_lows and d["discount_percent"] >= 30.0:
+        if cid not in seen_lows and d["discount_percent"] >= 25.0:
             seen_lows.add(cid)
             historical_lows.append(item)
-
-    for d in sorted_by_discount:
-        cid = d["cheapshark_id"]
-        if cid not in seen_deep:
+        if cid not in seen_deep and d["discount_percent"] >= 50.0:
             seen_deep.add(cid)
-            deep_discounts.append(format_deal_item(d))
+            deep_discounts.append(item)
 
     for d in live_bargain_deals:
         cid = d["cheapshark_id"]
@@ -1161,10 +1195,12 @@ async def delete_alert(alert_id: str):
 
 @app.put("/api/refresh")
 async def force_refresh():
+    global REFRESH_COUNTER
     try:
+        REFRESH_COUNTER += 1
         clear_all_cheapshark_caches()
         await update_all_prices()
-        return {"message": "All tracked game prices successfully updated!"}
+        return {"message": "All tracked game prices and deals successfully refreshed & updated!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to refresh prices: {str(e)}")
 
@@ -1248,8 +1284,12 @@ async def get_dashboard_stats(region: str = "IN"):
     rate = r_info["rate"]
     symbol = r_info["symbol"]
     
-    # Fetch live storewide deals from CheapShark
-    live_deals = await get_deals_from_api(sort_by="Deal Rating", page_size=60)
+    # Fetch live storewide deals from CheapShark using daily rotating deal parameters
+    primary_sort, secondary_sort, page_1, page_2, rng = get_daily_deal_params(offset_index=1)
+    live_deals_1 = await get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1)
+    live_deals_2 = await get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2)
+    live_deals = live_deals_1 + live_deals_2
+    rng.shuffle(live_deals)
     
     wishlist_deals_count = 0
     top_discounts = []

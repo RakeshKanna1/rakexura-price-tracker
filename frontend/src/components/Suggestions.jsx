@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Tag, TrendingDown, Trophy, Sparkles, Eye, Loader2, Percent, Flame } from 'lucide-react';
+import { Search, Tag, TrendingDown, Trophy, Sparkles, Eye, Loader2, Percent, Flame, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE } from '../config';
 
-const Suggestions = ({ onViewDetails, region }) => {
+const Suggestions = ({ onViewDetails, triggerToast, region }) => {
   const [activeCategory, setActiveCategory] = useState('based_on_searches');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchSuggestions = async () => {
     try {
@@ -16,6 +17,19 @@ const Suggestions = ({ onViewDetails, region }) => {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRotateDeals = async () => {
+    setRefreshing(true);
+    try {
+      await axios.put(`${API_BASE}/refresh`);
+      await fetchSuggestions();
+      if (triggerToast) triggerToast("Rotated to a fresh set of games on sale!", "success");
+    } catch (err) {
+      if (triggerToast) triggerToast("Failed to rotate deals.", "error");
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -66,14 +80,24 @@ const Suggestions = ({ onViewDetails, region }) => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-          <Flame className="w-8 h-8 text-gaming-accent" />
-          Low Price Game Suggestions
-        </h2>
-        <p className="text-gaming-muted mt-1 text-sm">
-          Personalized bargain suggestions based on your recent searches and price drop monitoring.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
+            <Flame className="w-8 h-8 text-gaming-accent" />
+            Games On Sale & Bargain Suggestions
+          </h2>
+          <p className="text-gaming-muted mt-1 text-sm">
+            Daily rotating bargain deals across major PC stores, plus search history recommendations.
+          </p>
+        </div>
+        <button
+          onClick={handleRotateDeals}
+          disabled={refreshing}
+          className="flex items-center gap-2 px-4.5 py-2.5 bg-gaming-accent hover:bg-gaming-accent/90 disabled:bg-gaming-accent/50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all duration-300 shadow-glow hover:shadow-purple-500/20 active:scale-95 shrink-0"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'Rotating Deals...' : 'Rotate Deals'}
+        </button>
       </div>
 
       {/* Suggestion Navigation Tabs */}

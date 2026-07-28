@@ -170,6 +170,7 @@ function App() {
         return (
           <Suggestions 
             onViewDetails={handleViewDetails}
+            triggerToast={triggerToast}
             region={region}
           />
         );

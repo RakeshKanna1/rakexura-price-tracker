@@ -295,13 +295,14 @@ async def get_deals_from_api(
     lower_price: float = None,
     min_discount: int = None,
     sort_by: str = "Deal Rating", 
-    page_size: int = 30
+    page_size: int = 30,
+    page_number: int = 0
 ) -> List[Dict[str, Any]]:
     """
-    Fetch active game deals on sale from CheapShark Deals API
+    Fetch active game deals on sale from CheapShark Deals API with pagination support
     """
     now = time.time()
-    cache_key = f"{store_id}_{upper_price}_{lower_price}_{min_discount}_{sort_by}_{page_size}"
+    cache_key = f"{store_id}_{upper_price}_{lower_price}_{min_discount}_{sort_by}_{page_size}_{page_number}"
     
     if cache_key in DEALS_CACHE:
         expiry, data = DEALS_CACHE[cache_key]
@@ -311,6 +312,7 @@ async def get_deals_from_api(
     params = {
         "onSale": "1",
         "pageSize": str(page_size),
+        "pageNumber": str(page_number),
         "sortBy": sort_by,
         "desc": "1"
     }
