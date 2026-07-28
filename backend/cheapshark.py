@@ -338,7 +338,9 @@ async def get_deals_from_api(
                 continue
             
             store_id_val = str(deal.get("storeID"))
-            store_info = STORE_MAPPING.get(store_id_val, {"name": "PC Store"})
+            store_info = STORE_MAPPING.get(store_id_val, {"name": "PC Store", "type": "Authorized Reseller"})
+            store_type = store_info.get("type", "Authorized Reseller")
+            is_official = store_type == "Official Store"
             
             sale_price = float(deal.get("salePrice", 0.0))
             normal_price = float(deal.get("normalPrice", sale_price))
@@ -354,6 +356,8 @@ async def get_deals_from_api(
                 "normal_price_usd": normal_price,
                 "discount_percent": round(savings, 1),
                 "platform": store_info.get("name", "Steam"),
+                "store_type": store_type,
+                "is_official": is_official,
                 "metacritic_score": deal.get("metacriticScore"),
                 "deal_rating": deal.get("dealRating")
             })

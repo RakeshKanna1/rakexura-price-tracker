@@ -195,9 +195,13 @@ const Suggestions = ({ onViewDetails, triggerToast, region }) => {
                       />
                       <div className="min-w-0 flex-1">
                         <h4 className="text-xs font-bold text-white truncate group-hover:text-gaming-accent transition-colors">{game.name}</h4>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <span className="text-[8.5px] bg-gaming-accent/15 text-gaming-accent border border-gaming-accent/20 px-1.5 py-0.5 rounded font-bold">
-                            {game.platform}
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <span className={`text-[8.5px] px-1.5 py-0.5 rounded font-black flex items-center gap-1 ${
+                            game.is_official || game.store_type === 'Official Store'
+                              ? 'bg-gaming-green/15 text-gaming-green border border-gaming-green/30'
+                              : 'bg-gaming-blue/15 text-gaming-blue border border-gaming-blue/20'
+                          }`}>
+                            {game.platform} {(game.is_official || game.store_type === 'Official Store') && '✓ Official'}
                           </span>
                           {game.searched_for && (
                             <span className="text-[8.5px] bg-purple-500/20 border border-purple-500/30 text-purple-300 px-1.5 py-0.5 rounded font-semibold truncate max-w-[100px]">

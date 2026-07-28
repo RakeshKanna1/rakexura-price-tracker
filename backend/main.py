@@ -900,9 +900,19 @@ async def get_suggestions(region: str = "IN"):
     live_deals_p2 = await get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2)
     live_bargain_deals = await get_deals_from_api(upper_price=5.0, sort_by="Price", page_size=40, page_number=page_1)
     
-    combined_live_deals = live_deals_p1 + live_deals_p2
-    rng.shuffle(combined_live_deals)
-    rng.shuffle(live_bargain_deals)
+    # Prioritize Official Stores (Steam, Epic, EA, Ubisoft, GOG, Xbox, Blizzard) first!
+    raw_combined = live_deals_p1 + live_deals_p2
+    official_combined = [d for d in raw_combined if d.get("is_official")]
+    reseller_combined = [d for d in raw_combined if not d.get("is_official")]
+    rng.shuffle(official_combined)
+    rng.shuffle(reseller_combined)
+    combined_live_deals = official_combined + reseller_combined
+    
+    official_bargain = [d for d in live_bargain_deals if d.get("is_official")]
+    reseller_bargain = [d for d in live_bargain_deals if not d.get("is_official")]
+    rng.shuffle(official_bargain)
+    rng.shuffle(reseller_bargain)
+    live_bargain_deals = official_bargain + reseller_bargain
     
     def format_deal_item(deal: dict) -> dict:
         buy_p = deal["sale_price_usd"] * rate
@@ -916,6 +926,8 @@ async def get_suggestions(region: str = "IN"):
             "discount": deal["discount_percent"],
             "lowest_ever": round(buy_p, 2),
             "platform": deal["platform"],
+            "store_type": deal.get("store_type", "Official Store"),
+            "is_official": deal.get("is_official", True),
             "currency_symbol": symbol
         }
 
@@ -1288,8 +1300,14 @@ async def get_dashboard_stats(region: str = "IN"):
     primary_sort, secondary_sort, page_1, page_2, rng = get_daily_deal_params(offset_index=1)
     live_deals_1 = await get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1)
     live_deals_2 = await get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2)
-    live_deals = live_deals_1 + live_deals_2
-    rng.shuffle(live_deals)
+    
+    # Prioritize Official Store deals first
+    raw_deals = live_deals_1 + live_deals_2
+    official_live = [d for d in raw_deals if d.get("is_official")]
+    reseller_live = [d for d in raw_deals if not d.get("is_official")]
+    rng.shuffle(official_live)
+    rng.shuffle(reseller_live)
+    live_deals = official_live + reseller_live
     
     wishlist_deals_count = 0
     top_discounts = []
@@ -1316,6 +1334,7 @@ async def get_dashboard_stats(region: str = "IN"):
                 "original_price": round(orig_p, 2),
                 "discount_percent": disc,
                 "platform": g.get("platform", "Steam"),
+                "is_official": True,
                 "is_wishlist": True
             })
             
@@ -1345,6 +1364,7 @@ async def get_dashboard_stats(region: str = "IN"):
                 "original_price": round(orig_p, 2),
                 "discount_percent": disc,
                 "platform": d["platform"],
+                "is_official": d.get("is_official", True),
                 "is_wishlist": False
             })
             
@@ -1357,7 +1377,7 @@ async def get_dashboard_stats(region: str = "IN"):
                 "thumbnail": d["thumbnail"]
             }
 
-    top_discounts.sort(key=lambda x: x["discount_percent"], reverse=True)
+    top_discounts.sort(key=lambda x: (0 if x.get("is_official") else 1, -x["discount_percent"]))
     deals_today = max(len(top_discounts), wishlist_deals_count)
     top_discounts = top_discounts[:5]
     
