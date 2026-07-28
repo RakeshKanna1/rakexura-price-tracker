@@ -1027,17 +1027,25 @@ async def get_notifications(region: str = "IN"):
     today_str = now.strftime("%Y-%m-%d")
     day_of_year = now.timetuple().tm_yday
     
-    # 1. Generate fresh daily deal suggestions if not generated today
+    # 1. Clean up any invalid/legacy daily deal suggestions with trivial discounts (< 15% OFF)
+    await notif_col.delete_many({"type": "POPULAR_DEAL", "discount_percent": {"$lt": 15.0}})
+
+    # 2. Generate fresh daily deal suggestions if not generated today
     count_today = await notif_col.count_documents({"date_key": today_str, "type": "POPULAR_DEAL"})
-    if count_today == 0:
+    if count_today < 3:
         try:
-            # Rotate sort order dynamically based on current day of year
-            sort_modes = ["Deal Rating", "Savings", "Price", "Recent"]
+            # Rotate sort order between high-value modes (Deal Rating & Savings) with a minimum discount filter (min 15% OFF)
+            sort_modes = ["Deal Rating", "Savings", "Deal Rating", "Savings"]
             selected_sort = sort_modes[day_of_year % len(sort_modes)]
             
-            live_popular_deals = await get_deals_from_api(sort_by=selected_sort, page_size=15)
-            # Pick 5 unique deals for today
-            for deal in live_popular_deals[:5]:
+            live_popular_deals = await get_deals_from_api(sort_by=selected_sort, min_discount=15, page_size=25)
+            # Ensure deals have a minimum 15% discount
+            valid_deals = [d for d in live_popular_deals if d.get("discount_percent", 0) >= 15.0]
+            
+            added = count_today
+            for deal in valid_deals:
+                if added >= 5:
+                    break
                 cid = deal["cheapshark_id"]
                 exists = await notif_col.find_one({"date_key": today_str, "cheapshark_id": cid})
                 if not exists:
@@ -1058,6 +1066,7 @@ async def get_notifications(region: str = "IN"):
                         "is_read": False,
                         "created_at": now
                     })
+                    added += 1
         except Exception as e:
             logger.error(f"Error generating daily deal suggestions: {e}")
 
