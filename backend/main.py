@@ -2,6 +2,7 @@ import os
 import re
 import csv
 import random
+import asyncio
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from fastapi import FastAPI, HTTPException, Query, Response
@@ -864,41 +865,50 @@ async def get_suggestions(region: str = "IN"):
             if dq not in search_terms and len(search_terms) < 5:
                 search_terms.append(dq)
                 
-    # 2. Fetch recommendations dynamically based on recent search terms
+    # 2. Fetch recommendations & live deals concurrently in parallel for speed
+    search_tasks = [search_games_from_api(term) for term in search_terms[:5]]
+    deal_tasks = [
+        get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1),
+        get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2),
+        get_deals_from_api(upper_price=5.0, sort_by="Price", page_size=40, page_number=page_1)
+    ]
+    
+    search_results_list, (live_deals_p1, live_deals_p2, live_bargain_deals) = await asyncio.gather(
+        asyncio.gather(*search_tasks, return_exceptions=True),
+        asyncio.gather(*deal_tasks, return_exceptions=True)
+    )
+    
+    # Ensure list fallbacks if exceptions occurred
+    live_deals_p1 = live_deals_p1 if isinstance(live_deals_p1, list) else []
+    live_deals_p2 = live_deals_p2 if isinstance(live_deals_p2, list) else []
+    live_bargain_deals = live_bargain_deals if isinstance(live_bargain_deals, list) else []
+    
     based_on_searches = []
     seen_ids = set()
     
-    for term in search_terms:
-        if len(based_on_searches) >= 12:
-            break
-        try:
-            results = await search_games_from_api(term)
-            for res in results[:2]:
-                cid = res.get("cheapshark_id")
-                if cid and cid not in seen_ids:
-                    seen_ids.add(cid)
-                    cheap_p_usd = res.get("cheapest_price") or 0.0
-                    buy_p = cheap_p_usd * rate
-                    orig_p = buy_p * 1.5 if buy_p > 0 else 0.0
-                    based_on_searches.append({
-                        "cheapshark_id": cid,
-                        "name": res.get("name"),
-                        "thumbnail": res.get("thumbnail"),
-                        "buy_price": round(buy_p, 2),
-                        "original_price": round(orig_p, 2),
-                        "discount": 33.0,
-                        "lowest_ever": round(buy_p, 2),
-                        "platform": "Steam / PC",
-                        "searched_for": term,
-                        "currency_symbol": symbol
-                    })
-        except Exception:
-            pass
-
-    # 3. Fetch Live CheapShark Deals using daily rotating page offsets and sort orders
-    live_deals_p1 = await get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1)
-    live_deals_p2 = await get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2)
-    live_bargain_deals = await get_deals_from_api(upper_price=5.0, sort_by="Price", page_size=40, page_number=page_1)
+    for idx, res_set in enumerate(search_results_list):
+        if not isinstance(res_set, list):
+            continue
+        term = search_terms[idx] if idx < len(search_terms) else ""
+        for res in res_set[:2]:
+            cid = res.get("cheapshark_id")
+            if cid and cid not in seen_ids:
+                seen_ids.add(cid)
+                cheap_p_usd = res.get("cheapest_price") or 0.0
+                buy_p = cheap_p_usd * rate
+                orig_p = buy_p * 1.5 if buy_p > 0 else 0.0
+                based_on_searches.append({
+                    "cheapshark_id": cid,
+                    "name": res.get("name"),
+                    "thumbnail": res.get("thumbnail"),
+                    "buy_price": round(buy_p, 2),
+                    "original_price": round(orig_p, 2),
+                    "discount": 33.0,
+                    "lowest_ever": round(buy_p, 2),
+                    "platform": "Steam / PC",
+                    "searched_for": term,
+                    "currency_symbol": symbol
+                })
     
     # Prioritize Official Stores (Steam, Epic, EA, Ubisoft, GOG, Xbox, Blizzard) first!
     raw_combined = live_deals_p1 + live_deals_p2

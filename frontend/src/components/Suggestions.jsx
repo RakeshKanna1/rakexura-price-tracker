@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Tag, TrendingDown, Trophy, Sparkles, Eye, Loader2, Percent, Flame, RefreshCw } from 'lucide-react';
 import axios from 'axios';
-import { API_BASE } from '../config';
+import { API_BASE, cacheGet, cacheSet } from '../config';
 
 const Suggestions = ({ onViewDetails, triggerToast, region }) => {
   const [activeCategory, setActiveCategory] = useState('based_on_searches');
@@ -9,10 +9,12 @@ const Suggestions = ({ onViewDetails, triggerToast, region }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchSuggestions = async () => {
+  const fetchSuggestions = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/suggestions`, { params: { region } });
       setData(res.data);
+      cacheSet(`suggestions_${region}`, res.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -24,7 +26,7 @@ const Suggestions = ({ onViewDetails, triggerToast, region }) => {
     setRefreshing(true);
     try {
       await axios.put(`${API_BASE}/refresh`);
-      await fetchSuggestions();
+      await fetchSuggestions(false);
       if (triggerToast) triggerToast("Rotated to a fresh set of games on sale!", "success");
     } catch (err) {
       if (triggerToast) triggerToast("Failed to rotate deals.", "error");
@@ -34,7 +36,14 @@ const Suggestions = ({ onViewDetails, triggerToast, region }) => {
   };
 
   useEffect(() => {
-    fetchSuggestions();
+    const cached = cacheGet(`suggestions_${region}`);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+      fetchSuggestions(true);
+    } else {
+      fetchSuggestions(false);
+    }
   }, [region]);
 
   const getActiveList = () => {
