@@ -1315,10 +1315,21 @@ async def get_dashboard_stats(region: str = "IN"):
     rate = r_info["rate"]
     symbol = r_info["symbol"]
     
-    # Fetch live storewide deals from CheapShark using daily rotating deal parameters
+    # Fetch live storewide deals from CheapShark using daily rotating deal parameters concurrently
     primary_sort, secondary_sort, page_1, page_2, rng = get_daily_deal_params(offset_index=1)
-    live_deals_1 = await get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1)
-    live_deals_2 = await get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2)
+    
+    deal_results = await asyncio.gather(
+        get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1),
+        get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2),
+        return_exceptions=True
+    )
+    
+    live_deals_1 = deal_results[0] if isinstance(deal_results[0], list) else []
+    live_deals_2 = deal_results[1] if isinstance(deal_results[1], list) else []
+    
+    # Fallback to default Savings sort if primary rotating sorts return empty
+    if not live_deals_1 and not live_deals_2:
+        live_deals_1 = await get_deals_from_api(sort_by="Savings", page_size=40, page_number=0)
     
     # Prioritize Official Store deals first
     raw_deals = live_deals_1 + live_deals_2
@@ -1397,7 +1408,7 @@ async def get_dashboard_stats(region: str = "IN"):
             }
 
     top_discounts.sort(key=lambda x: (0 if x.get("is_official") else 1, -x["discount_percent"]))
-    deals_today = max(len(top_discounts), wishlist_deals_count)
+    deals_today = max(len(top_discounts), wishlist_deals_count, len(seen_ids))
     top_discounts = top_discounts[:5]
     
     last_log = await logs_col.find_one({"event_type": {"$in": ["PRICE_UPDATED", "SYSTEM_START"]}}, sort=[("timestamp", -1)])
