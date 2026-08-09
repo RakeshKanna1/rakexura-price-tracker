@@ -33,6 +33,7 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
   const [loadingAi, setLoadingAi] = useState(false);
 
   const activeRegion = REGION_RATES[region] || REGION_RATES.IN;
+  const [officialOnly, setOfficialOnly] = useState(true);
   const searchTimeoutRef = useRef(null);
 
   const fetchRecentSearches = async () => {
@@ -618,7 +619,19 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
 
                 {/* Price Comparison Table */}
                 <div className="glass-panel p-6 rounded-3xl border border-white/5">
-                  <h3 className="text-lg font-bold text-white mb-4">Price Comparison</h3>
+                  <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+                    <h3 className="text-lg font-bold text-white">Price Comparison</h3>
+                    <button
+                      onClick={() => setOfficialOnly(!officialOnly)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                        officialOnly 
+                          ? 'bg-gaming-green/15 border-gaming-green/40 text-gaming-green shadow-glow' 
+                          : 'bg-white/5 border-white/10 text-gaming-muted hover:text-white'
+                      }`}
+                    >
+                      <span>⭐ Official Stores Only ({officialOnly ? 'ON' : 'ALL STORES'})</span>
+                    </button>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[600px] text-left border-collapse">
                       <thead>
@@ -632,7 +645,10 @@ const SearchGame = ({ selectedGameId, setSelectedGameId, triggerToast, region })
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.03]">
-                        {gameDetails.platform_prices.map((store, index) => {
+                        {(officialOnly 
+                          ? gameDetails.platform_prices.filter(p => p.type === 'Official Store')
+                          : gameDetails.platform_prices
+                        ).map((store, index) => {
                           const isLowest = index === 0;
                           const isOfficial = store.type === 'Official Store';
                           return (

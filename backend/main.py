@@ -865,12 +865,12 @@ async def get_suggestions(region: str = "IN"):
             if dq not in search_terms and len(search_terms) < 5:
                 search_terms.append(dq)
                 
-    # 2. Fetch recommendations & live deals concurrently in parallel for speed
+    # 2. Fetch recommendations & live deals concurrently in parallel for speed (Official Stores only)
     search_tasks = [search_games_from_api(term) for term in search_terms[:5]]
     deal_tasks = [
-        get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1),
-        get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2),
-        get_deals_from_api(upper_price=5.0, sort_by="Price", page_size=40, page_number=page_1)
+        get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1, official_only=True),
+        get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2, official_only=True),
+        get_deals_from_api(upper_price=5.0, sort_by="Price", page_size=40, page_number=page_1, official_only=True)
     ]
     
     search_results_list, (live_deals_p1, live_deals_p2, live_bargain_deals) = await asyncio.gather(
@@ -910,19 +910,15 @@ async def get_suggestions(region: str = "IN"):
                     "currency_symbol": symbol
                 })
     
-    # Prioritize Official Stores (Steam, Epic, EA, Ubisoft, GOG, Xbox, Blizzard) first!
+    # 100% Official Stores only
     raw_combined = live_deals_p1 + live_deals_p2
     official_combined = [d for d in raw_combined if d.get("is_official")]
-    reseller_combined = [d for d in raw_combined if not d.get("is_official")]
     rng.shuffle(official_combined)
-    rng.shuffle(reseller_combined)
-    combined_live_deals = official_combined + reseller_combined
+    combined_live_deals = official_combined
     
     official_bargain = [d for d in live_bargain_deals if d.get("is_official")]
-    reseller_bargain = [d for d in live_bargain_deals if not d.get("is_official")]
     rng.shuffle(official_bargain)
-    rng.shuffle(reseller_bargain)
-    live_bargain_deals = official_bargain + reseller_bargain
+    live_bargain_deals = official_bargain
     
     def format_deal_item(deal: dict) -> dict:
         buy_p = deal["sale_price_usd"] * rate
@@ -1315,6 +1311,7 @@ async def get_dashboard_stats(region: str = "IN"):
     rate = r_info["rate"]
     symbol = r_info["symbol"]
     
+<<<<<<< HEAD
     # Fetch live storewide deals from CheapShark using daily rotating deal parameters concurrently
     primary_sort, secondary_sort, page_1, page_2, rng = get_daily_deal_params(offset_index=1)
     
@@ -1330,14 +1327,18 @@ async def get_dashboard_stats(region: str = "IN"):
     # Fallback to default Savings sort if primary rotating sorts return empty
     if not live_deals_1 and not live_deals_2:
         live_deals_1 = await get_deals_from_api(sort_by="Savings", page_size=40, page_number=0)
+=======
+    # Fetch live storewide deals from CheapShark (Official Stores only)
+    primary_sort, secondary_sort, page_1, page_2, rng = get_daily_deal_params(offset_index=1)
+    live_deals_1 = await get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1, official_only=True)
+    live_deals_2 = await get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2, official_only=True)
+>>>>>>> 67d5389 (feat: enforce official store only pricing for game deals across price tracker)
     
-    # Prioritize Official Store deals first
+    # 100% Official Store deals only
     raw_deals = live_deals_1 + live_deals_2
     official_live = [d for d in raw_deals if d.get("is_official")]
-    reseller_live = [d for d in raw_deals if not d.get("is_official")]
     rng.shuffle(official_live)
-    rng.shuffle(reseller_live)
-    live_deals = official_live + reseller_live
+    live_deals = official_live
     
     wishlist_deals_count = 0
     top_discounts = []

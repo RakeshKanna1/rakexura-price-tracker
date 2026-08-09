@@ -231,8 +231,12 @@ async def get_game_details_from_api(game_id: str, region: str = "IN", bypass_cac
     # Sort platform prices: Official Stores first (lowest price), then Resellers (lowest price)
     platform_prices.sort(key=lambda x: (0 if x["type"] == "Official Store" else 1, x["current_price"]))
     
-    # Find the lowest price
-    lowest_price = platform_prices[0]["current_price"] if platform_prices else 0.0
+    # Find lowest price among official stores first, falling back to all stores
+    official_store_prices = [p for p in platform_prices if p["type"] == "Official Store"]
+    if official_store_prices:
+        lowest_price = official_store_prices[0]["current_price"]
+    else:
+        lowest_price = platform_prices[0]["current_price"] if platform_prices else 0.0
     
     # Convert cheapest ever to regional currency
     cheapest_ever_val = float(cheapest_ever.get("price", 0.0))
@@ -296,13 +300,14 @@ async def get_deals_from_api(
     min_discount: int = None,
     sort_by: str = "Deal Rating", 
     page_size: int = 30,
-    page_number: int = 0
+    page_number: int = 0,
+    official_only: bool = True
 ) -> List[Dict[str, Any]]:
     """
-    Fetch active game deals on sale from CheapShark Deals API with pagination support
+    Fetch active game deals on sale from CheapShark Deals API (Official Stores only by default)
     """
     now = time.time()
-    cache_key = f"{store_id}_{upper_price}_{lower_price}_{min_discount}_{sort_by}_{page_size}_{page_number}"
+    cache_key = f"{store_id}_{upper_price}_{lower_price}_{min_discount}_{sort_by}_{page_size}_{page_number}_{official_only}"
     
     if cache_key in DEALS_CACHE:
         expiry, data = DEALS_CACHE[cache_key]
@@ -318,6 +323,10 @@ async def get_deals_from_api(
     }
     if store_id:
         params["storeID"] = str(store_id)
+    elif official_only:
+        # Official Store IDs in CheapShark: Steam (1), GOG (7), EA (8), Ubisoft (13), Epic (25), Xbox (28), Blizzard (31)
+        params["storeID"] = "1,7,8,13,25,28,31"
+
     if upper_price is not None:
         params["upperPrice"] = str(upper_price)
     if lower_price is not None:
@@ -342,6 +351,9 @@ async def get_deals_from_api(
             store_type = store_info.get("type", "Authorized Reseller")
             is_official = store_type == "Official Store"
             
+            if official_only and not is_official:
+                continue
+                
             sale_price = float(deal.get("salePrice", 0.0))
             normal_price = float(deal.get("normalPrice", sale_price))
             if normal_price < sale_price:
