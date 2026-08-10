@@ -1310,14 +1310,12 @@ async def get_dashboard_stats(region: str = "IN"):
     r_info = REGIONS.get(region, REGIONS["IN"])
     rate = r_info["rate"]
     symbol = r_info["symbol"]
-    
-<<<<<<< HEAD
-    # Fetch live storewide deals from CheapShark using daily rotating deal parameters concurrently
+    # Fetch live storewide deals from CheapShark (Official Stores only) using daily rotating deal parameters concurrently
     primary_sort, secondary_sort, page_1, page_2, rng = get_daily_deal_params(offset_index=1)
     
     deal_results = await asyncio.gather(
-        get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1),
-        get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2),
+        get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1, official_only=True),
+        get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2, official_only=True),
         return_exceptions=True
     )
     
@@ -1326,13 +1324,7 @@ async def get_dashboard_stats(region: str = "IN"):
     
     # Fallback to default Savings sort if primary rotating sorts return empty
     if not live_deals_1 and not live_deals_2:
-        live_deals_1 = await get_deals_from_api(sort_by="Savings", page_size=40, page_number=0)
-=======
-    # Fetch live storewide deals from CheapShark (Official Stores only)
-    primary_sort, secondary_sort, page_1, page_2, rng = get_daily_deal_params(offset_index=1)
-    live_deals_1 = await get_deals_from_api(sort_by=primary_sort, page_size=40, page_number=page_1, official_only=True)
-    live_deals_2 = await get_deals_from_api(sort_by=secondary_sort, page_size=40, page_number=page_2, official_only=True)
->>>>>>> 67d5389 (feat: enforce official store only pricing for game deals across price tracker)
+        live_deals_1 = await get_deals_from_api(sort_by="Savings", page_size=40, page_number=0, official_only=True)
     
     # 100% Official Store deals only
     raw_deals = live_deals_1 + live_deals_2
